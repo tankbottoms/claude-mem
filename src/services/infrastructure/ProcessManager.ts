@@ -31,7 +31,7 @@ const ORPHAN_PROCESS_PATTERNS = [
 ];
 
 // Only kill processes older than this to avoid killing the current session
-const ORPHAN_MAX_AGE_MINUTES = 30;
+const ORPHAN_MAX_AGE_MINUTES = 5;
 
 interface RuntimeResolverOptions {
   platform?: NodeJS.Platform;

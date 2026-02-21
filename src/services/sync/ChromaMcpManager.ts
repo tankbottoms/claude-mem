@@ -26,6 +26,7 @@ const CHROMA_MCP_CLIENT_NAME = 'claude-mem-chroma';
 const CHROMA_MCP_CLIENT_VERSION = '1.0.0';
 const MCP_CONNECTION_TIMEOUT_MS = 30_000;
 const RECONNECT_BACKOFF_MS = 10_000; // Don't retry connections faster than this after failure
+const SUBPROCESS_KILL_TIMEOUT_MS = 3_000; // Wait this long for SIGTERM before SIGKILL
 const DEFAULT_CHROMA_DATA_DIR = path.join(os.homedir(), '.claude-mem', 'chroma');
 
 export class ChromaMcpManager {
@@ -35,6 +36,7 @@ export class ChromaMcpManager {
   private connected: boolean = false;
   private lastConnectionFailureTimestamp: number = 0;
   private connecting: Promise<void> | null = null;
+  private subprocessPid: number | null = null;
 
   private constructor() {}
 
@@ -82,6 +84,39 @@ export class ChromaMcpManager {
   }
 
   /**
+   * Extract the subprocess PID from StdioClientTransport's internal ChildProcess.
+   * The MCP SDK stores the spawned process internally. We access it defensively
+   * to track PIDs for cleanup without depending on SDK internals.
+   */
+  private extractSubprocessPid(): number | null {
+    try {
+      // StdioClientTransport stores the ChildProcess internally
+      const transportAny = this.transport as any;
+      const proc = transportAny?._process ?? transportAny?.process;
+      return proc?.pid ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Force-kill a subprocess by PID if it's still alive.
+   * Used as a safety net after transport.close() (SIGTERM) to prevent zombie processes.
+   */
+  private forceKillSubprocess(pid: number | null): void {
+    if (pid === null) return;
+    try {
+      // Check if process is still alive (signal 0 = existence check)
+      process.kill(pid, 0);
+      // Still alive after SIGTERM grace period - SIGKILL it
+      logger.warn('CHROMA_MCP', `Subprocess PID ${pid} survived SIGTERM, sending SIGKILL`);
+      process.kill(pid, 'SIGKILL');
+    } catch {
+      // ESRCH = already dead, which is what we want
+    }
+  }
+
+  /**
    * Internal connection logic - spawns uvx chroma-mcp and performs MCP handshake.
    * Called behind the connection lock to ensure only one connection attempt at a time.
    */
@@ -89,6 +124,7 @@ export class ChromaMcpManager {
     // Clean up any stale client/transport from a dead subprocess.
     // Close transport first (kills subprocess via SIGTERM) before client
     // to avoid hanging on a stuck process.
+    const stalePid = this.subprocessPid;
     if (this.transport) {
       try { await this.transport.close(); } catch { /* already dead */ }
     }
@@ -98,6 +134,14 @@ export class ChromaMcpManager {
     this.client = null;
     this.transport = null;
     this.connected = false;
+
+    // If SIGTERM via transport.close() didn't kill the subprocess, force-kill it
+    if (stalePid !== null) {
+      // Give the subprocess a moment to die from SIGTERM
+      await new Promise(r => setTimeout(r, Math.min(SUBPROCESS_KILL_TIMEOUT_MS, 1000)));
+      this.forceKillSubprocess(stalePid);
+      this.subprocessPid = null;
+    }
 
     const commandArgs = this.buildCommandArgs();
     const spawnEnvironment = this.getSpawnEnv();
@@ -139,16 +183,25 @@ export class ChromaMcpManager {
       logger.warn('CHROMA_MCP', 'Connection failed, killing subprocess to prevent zombie', {
         error: connectionError instanceof Error ? connectionError.message : String(connectionError)
       });
+      // Capture PID before closing so we can force-kill if needed
+      const failedPid = this.extractSubprocessPid();
       try { await this.transport.close(); } catch { /* best effort */ }
       try { await this.client.close(); } catch { /* best effort */ }
+      // Force-kill if transport.close() didn't do the job
+      if (failedPid) {
+        await new Promise(r => setTimeout(r, 500));
+        this.forceKillSubprocess(failedPid);
+      }
       this.client = null;
       this.transport = null;
       this.connected = false;
+      this.subprocessPid = null;
       throw connectionError;
     }
     clearTimeout(timeoutId!);
 
     this.connected = true;
+    this.subprocessPid = this.extractSubprocessPid();
 
     logger.info('CHROMA_MCP', 'Connected to chroma-mcp successfully');
 
@@ -156,6 +209,7 @@ export class ChromaMcpManager {
     // CRITICAL: Guard with reference check to prevent stale onclose handlers from
     // previous transports overwriting the current connection (race condition).
     const currentTransport = this.transport;
+    const currentPid = this.subprocessPid;
     this.transport.onclose = () => {
       if (this.transport !== currentTransport) {
         logger.debug('CHROMA_MCP', 'Ignoring stale onclose from previous transport');
@@ -165,7 +219,10 @@ export class ChromaMcpManager {
       this.connected = false;
       this.client = null;
       this.transport = null;
+      this.subprocessPid = null;
       this.lastConnectionFailureTimestamp = Date.now();
+      // Ensure the subprocess is truly dead (belt and suspenders)
+      this.forceKillSubprocess(currentPid);
     };
   }
 
@@ -178,6 +235,9 @@ export class ChromaMcpManager {
     const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
     const chromaMode = settings.CLAUDE_MEM_CHROMA_MODE || 'local';
 
+    // Pin Python version to avoid chromadb/pydantic v1 incompatibility with Python 3.14+
+    const pythonVersion = settings.CLAUDE_MEM_PYTHON_VERSION || '3.13';
+
     if (chromaMode === 'remote') {
       const chromaHost = settings.CLAUDE_MEM_CHROMA_HOST || '127.0.0.1';
       const chromaPort = settings.CLAUDE_MEM_CHROMA_PORT || '8000';
@@ -187,6 +247,7 @@ export class ChromaMcpManager {
       const chromaApiKey = settings.CLAUDE_MEM_CHROMA_API_KEY || '';
 
       const args = [
+        '--python', pythonVersion,
         'chroma-mcp',
         '--client-type', 'http',
         '--host', chromaHost,
@@ -214,6 +275,7 @@ export class ChromaMcpManager {
 
     // Local mode: persistent client with data directory
     return [
+      '--python', pythonVersion,
       'chroma-mcp',
       '--client-type', 'persistent',
       '--data-dir', DEFAULT_CHROMA_DATA_DIR
@@ -288,23 +350,34 @@ export class ChromaMcpManager {
    * client.close() sends stdin close -> SIGTERM -> SIGKILL to the subprocess.
    */
   async stop(): Promise<void> {
-    if (!this.client) {
+    if (!this.client && !this.subprocessPid) {
       logger.debug('CHROMA_MCP', 'No active MCP connection to stop');
       return;
     }
 
     logger.info('CHROMA_MCP', 'Stopping chroma-mcp MCP connection');
 
+    const pidToKill = this.subprocessPid;
+
     try {
-      await this.client.close();
+      if (this.client) {
+        await this.client.close();
+      }
     } catch (error) {
       logger.debug('CHROMA_MCP', 'Error during client close (subprocess may already be dead)', {}, error as Error);
+    }
+
+    // Force-kill the subprocess if client.close() didn't terminate it
+    if (pidToKill) {
+      await new Promise(r => setTimeout(r, 500));
+      this.forceKillSubprocess(pidToKill);
     }
 
     this.client = null;
     this.transport = null;
     this.connected = false;
     this.connecting = null;
+    this.subprocessPid = null;
 
     logger.info('CHROMA_MCP', 'chroma-mcp MCP connection stopped');
   }
