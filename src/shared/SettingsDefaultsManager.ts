@@ -8,7 +8,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
-import { DEFAULT_OBSERVATION_TYPES_STRING, DEFAULT_OBSERVATION_CONCEPTS_STRING } from '../constants/observation-metadata.js';
 // NOTE: Do NOT import logger here - it creates a circular dependency
 // logger.ts depends on SettingsDefaultsManager for its initialization
 
@@ -41,9 +40,6 @@ export interface SettingsDefaults {
   CLAUDE_MEM_CONTEXT_SHOW_WORK_TOKENS: string;
   CLAUDE_MEM_CONTEXT_SHOW_SAVINGS_AMOUNT: string;
   CLAUDE_MEM_CONTEXT_SHOW_SAVINGS_PERCENT: string;
-  // Observation Filtering
-  CLAUDE_MEM_CONTEXT_OBSERVATION_TYPES: string;
-  CLAUDE_MEM_CONTEXT_OBSERVATION_CONCEPTS: string;
   // Display Configuration
   CLAUDE_MEM_CONTEXT_FULL_COUNT: string;
   CLAUDE_MEM_CONTEXT_FULL_FIELD: string;
@@ -51,6 +47,7 @@ export interface SettingsDefaults {
   // Feature Toggles
   CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY: string;
   CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE: string;
+  CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT: string;
   CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED: string;
   // Process Management
   CLAUDE_MEM_MAX_CONCURRENT_AGENTS: string;  // Max concurrent Claude SDK agent subprocesses (default: 2)
@@ -58,6 +55,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_EXCLUDED_PROJECTS: string;  // Comma-separated glob patterns for excluded project paths
   CLAUDE_MEM_FOLDER_MD_EXCLUDE: string;  // JSON array of folder paths to exclude from CLAUDE.md generation
   // Chroma Vector Database Configuration
+  CLAUDE_MEM_CHROMA_ENABLED: string;   // 'true' | 'false' - set to 'false' for SQLite-only mode
   CLAUDE_MEM_CHROMA_MODE: string;      // 'local' | 'remote'
   CLAUDE_MEM_CHROMA_HOST: string;
   CLAUDE_MEM_CHROMA_PORT: string;
@@ -101,9 +99,6 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_CONTEXT_SHOW_WORK_TOKENS: 'false',
     CLAUDE_MEM_CONTEXT_SHOW_SAVINGS_AMOUNT: 'false',
     CLAUDE_MEM_CONTEXT_SHOW_SAVINGS_PERCENT: 'true',
-    // Observation Filtering
-    CLAUDE_MEM_CONTEXT_OBSERVATION_TYPES: DEFAULT_OBSERVATION_TYPES_STRING,
-    CLAUDE_MEM_CONTEXT_OBSERVATION_CONCEPTS: DEFAULT_OBSERVATION_CONCEPTS_STRING,
     // Display Configuration
     CLAUDE_MEM_CONTEXT_FULL_COUNT: '0',
     CLAUDE_MEM_CONTEXT_FULL_FIELD: 'narrative',
@@ -111,6 +106,7 @@ export class SettingsDefaultsManager {
     // Feature Toggles
     CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY: 'true',
     CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE: 'false',
+    CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT: 'true',
     CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED: 'false',
     // Process Management
     CLAUDE_MEM_MAX_CONCURRENT_AGENTS: '2',  // Max concurrent Claude SDK agent subprocesses
@@ -118,6 +114,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_EXCLUDED_PROJECTS: '',  // Comma-separated glob patterns for excluded project paths
     CLAUDE_MEM_FOLDER_MD_EXCLUDE: '[]',  // JSON array of folder paths to exclude from CLAUDE.md generation
     // Chroma Vector Database Configuration
+    CLAUDE_MEM_CHROMA_ENABLED: 'true',         // Set to 'false' to disable Chroma and use SQLite-only search
     CLAUDE_MEM_CHROMA_MODE: 'local',           // 'local' uses persistent chroma-mcp via uvx, 'remote' connects to existing server
     CLAUDE_MEM_CHROMA_HOST: '127.0.0.1',
     CLAUDE_MEM_CHROMA_PORT: '8000',
@@ -136,10 +133,15 @@ export class SettingsDefaultsManager {
   }
 
   /**
-   * Get a default value from defaults (no environment variable override)
+   * Get a setting value with environment variable override.
+   * Priority: process.env > hardcoded default
+   *
+   * For full priority (env > settings file > default), use loadFromFile().
+   * This method is safe to call at module-load time (no file I/O) and still
+   * respects environment variable overrides that were previously ignored.
    */
   static get(key: keyof SettingsDefaults): string {
-    return this.DEFAULTS[key];
+    return process.env[key] ?? this.DEFAULTS[key];
   }
 
   /**
