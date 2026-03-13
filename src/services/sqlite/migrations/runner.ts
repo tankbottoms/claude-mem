@@ -34,6 +34,7 @@ export class MigrationRunner {
     this.addOnUpdateCascadeToForeignKeys();
     this.addObservationContentHashColumn();
     this.addSessionCustomTitleColumn();
+    this.addFederationSyncTracking();
   }
 
   /**
@@ -858,5 +859,48 @@ export class MigrationRunner {
     }
 
     this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(23, new Date().toISOString());
+  }
+
+  /**
+   * Add federation sync tracking tables and source_machine column (migration 24)
+   *
+   * Enables cross-machine observation sync:
+   * - federation_sync table tracks what has been imported from which remote machine
+   * - source_machine column on observations identifies where a record originated
+   *   (NULL = local, hostname string = imported from that machine)
+   */
+  private addFederationSyncTracking(): void {
+    const applied = this.db.prepare('SELECT version FROM schema_versions WHERE version = ?').get(24) as SchemaVersion | undefined;
+    if (applied) return;
+
+    // Create federation_sync tracking table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS federation_sync (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        remote_id INTEGER NOT NULL,
+        source_machine TEXT NOT NULL,
+        record_type TEXT NOT NULL CHECK(record_type IN ('observation', 'summary')),
+        local_id INTEGER NOT NULL,
+        synced_at_epoch INTEGER NOT NULL,
+        UNIQUE(remote_id, source_machine, record_type)
+      )
+    `);
+
+    // Index for fast lookups during import dedup
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_federation_sync_lookup ON federation_sync(source_machine, record_type, remote_id)');
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_federation_sync_time ON federation_sync(synced_at_epoch DESC)');
+
+    // Add source_machine column to observations (NULL = local origin)
+    const tableInfo = this.db.query('PRAGMA table_info(observations)').all() as TableColumnInfo[];
+    const hasColumn = tableInfo.some(col => col.name === 'source_machine');
+
+    if (!hasColumn) {
+      this.db.run('ALTER TABLE observations ADD COLUMN source_machine TEXT');
+      this.db.run('CREATE INDEX IF NOT EXISTS idx_observations_source ON observations(source_machine)');
+      logger.debug('DB', 'Added source_machine column to observations table');
+    }
+
+    this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(24, new Date().toISOString());
+    logger.debug('DB', 'Federation sync tracking tables created (migration 24)');
   }
 }
