@@ -242,9 +242,6 @@ export class ChromaMcpManager {
     const chromaMode = settings.CLAUDE_MEM_CHROMA_MODE || 'local';
     const pythonVersion = process.env.CLAUDE_MEM_PYTHON_VERSION || settings.CLAUDE_MEM_PYTHON_VERSION || '3.13';
 
-    // Pin Python version to avoid chromadb/pydantic v1 incompatibility with Python 3.14+
-    const pythonVersion = settings.CLAUDE_MEM_PYTHON_VERSION || '3.13';
-
     if (chromaMode === 'remote') {
       const chromaHost = settings.CLAUDE_MEM_CHROMA_HOST || '127.0.0.1';
       const chromaPort = settings.CLAUDE_MEM_CHROMA_PORT || '8000';
