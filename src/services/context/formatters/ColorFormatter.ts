@@ -204,7 +204,16 @@ export function renderColorSummaryItem(
  */
 export function renderColorSummaryField(label: string, value: string | null, color: string): string[] {
   if (!value) return [];
-  return [`${color}${label}:${colors.reset} ${value}`, ''];
+  const glyphs: Record<string, string> = {
+    'Investigated': '\uf002',
+    'Learned': '\uf0eb',
+    'Completed': '\uf00c',
+    'Next Steps': '\uf061',
+  };
+  const glyph = glyphs[label] || '\u25cf';
+  // Format: 2 spaces, colored glyph+colon, 2 spaces, then text
+  const prefix = `  ${color}${glyph}:${colors.reset}  `;
+  return [prefix + value, ''];
 }
 
 /**

@@ -1351,9 +1351,9 @@ export class SearchManager {
           lines.push('');
 
           if (summary.request) lines.push(`**Request:** ${summary.request}`);
-          if (summary.completed) lines.push(`**Completed:** ${summary.completed}`);
-          if (summary.learned) lines.push(`**Learned:** ${summary.learned}`);
-          if (summary.next_steps) lines.push(`**Next Steps:** ${summary.next_steps}`);
+          if (summary.completed) lines.push(`  \uf00c:  ${summary.completed}`);
+          if (summary.learned) lines.push(`  \uf0eb:  ${summary.learned}`);
+          if (summary.next_steps) lines.push(`  \uf061:  ${summary.next_steps}`);
 
           // Handle files_read
           if (summary.files_read) {

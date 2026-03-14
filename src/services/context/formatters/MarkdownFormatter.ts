@@ -202,7 +202,41 @@ export function renderMarkdownSummaryItem(
  */
 export function renderMarkdownSummaryField(label: string, value: string | null): string[] {
   if (!value) return [];
-  return [`**${label}**: ${value}`, ''];
+  const glyphs: Record<string, string> = {
+    'Investigated': '\uf002',
+    'Learned': '\uf0eb',
+    'Completed': '\uf00c',
+    'Next Steps': '\uf061',
+  };
+  const glyph = glyphs[label] || '\u25cf';
+  // Format: 2 spaces + glyph + colon + 2 spaces + text
+  // When text wraps, indent aligns under text start (7 spaces = "  X:  " width)
+  const indent = '       ';
+  const words = value.split(' ');
+  const maxWidth = 80;
+  const prefixLen = 7; // "  X:  " is 7 chars
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLen = currentLine ? currentLine.length + 1 + word.length : word.length;
+    const lineMax = lines.length === 0 ? maxWidth - prefixLen : maxWidth - indent.length;
+    if (currentLine && testLen > lineMax) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = currentLine ? currentLine + ' ' + word : word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  const result: string[] = [];
+  result.push(`  ${glyph}:  ${lines[0] || ''}`);
+  for (const line of lines.slice(1)) {
+    result.push(indent + line);
+  }
+  result.push('');
+  return result;
 }
 
 /**
