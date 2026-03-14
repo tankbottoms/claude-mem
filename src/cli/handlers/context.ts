@@ -12,6 +12,7 @@ import { HOOK_EXIT_CODES } from '../../shared/hook-constants.js';
 import { logger } from '../../utils/logger.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { USER_SETTINGS_PATH } from '../../shared/paths.js';
+import { hostname } from 'os';
 
 export const contextHandler: EventHandler = {
   async execute(input: NormalizedHookInput): Promise<HookResult> {
@@ -68,7 +69,7 @@ export const contextHandler: EventHandler = {
       const coloredTimeline = colorResult.trim();
 
       const systemMessage = showTerminalOutput && coloredTimeline
-        ? `${coloredTimeline}\n\nView Observations Live @ http://localhost:${port}`
+        ? `${coloredTimeline}\n\nView Observations @ http://${hostname()}:${port} (0.0.0.0)`
         : undefined;
 
       return {

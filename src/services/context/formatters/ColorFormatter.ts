@@ -115,8 +115,7 @@ export function renderColorContextEconomics(
  */
 export function renderColorDayHeader(day: string): string[] {
   return [
-    `${colors.bright}${colors.cyan}${day}${colors.reset}`,
-    ''
+    `${colors.bright}${colors.cyan}${day}${colors.reset}`
   ];
 }
 
@@ -136,7 +135,8 @@ export function renderColorTableRow(
   obs: Observation,
   time: string,
   showTime: boolean,
-  config: ContextConfig
+  config: ContextConfig,
+  file?: string
 ): string {
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
@@ -145,8 +145,9 @@ export function renderColorTableRow(
   const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
   const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
   const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const filePart = file && file !== 'General' ? `  ${colors.dim}${file.split('/').pop()}${colors.reset}` : '';
 
-  return `  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${title} ${readPart} ${discoveryPart}`;
+  return `  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${title}${filePart} ${readPart} ${discoveryPart}`;
 }
 
 /**
@@ -189,8 +190,7 @@ export function renderColorSummaryItem(
 ): string[] {
   const summaryTitle = `${summary.request || 'Session started'} (${formattedTime})`;
   return [
-    `${colors.yellow}#S${summary.id}${colors.reset} ${summaryTitle}`,
-    ''
+    `${colors.yellow}#S${summary.id}${colors.reset} ${summaryTitle}`
   ];
 }
 
