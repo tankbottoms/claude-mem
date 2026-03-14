@@ -27,28 +27,14 @@ export function renderHeader(
     output.push(...Markdown.renderMarkdownHeader(project));
   }
 
-  // Legend
-  if (useColors) {
-    output.push(...Color.renderColorLegend());
-  } else {
+  if (!useColors) {
+    // Legend, column key, context index - markdown only (Claude needs them)
     output.push(...Markdown.renderMarkdownLegend());
-  }
-
-  // Column key
-  if (useColors) {
-    output.push(...Color.renderColorColumnKey());
-  } else {
     output.push(...Markdown.renderMarkdownColumnKey());
-  }
-
-  // Context index instructions
-  if (useColors) {
-    output.push(...Color.renderColorContextIndex());
-  } else {
     output.push(...Markdown.renderMarkdownContextIndex());
   }
 
-  // Context economics
+  // Context economics (both paths)
   if (shouldShowContextEconomics(config)) {
     if (useColors) {
       output.push(...Color.renderColorContextEconomics(economics, config));

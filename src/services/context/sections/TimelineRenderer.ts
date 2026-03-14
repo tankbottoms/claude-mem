@@ -10,7 +10,8 @@ import type {
   TimelineItem,
   SummaryTimelineItem,
 } from '../types.js';
-import { formatTime, formatDate, formatDateTime, extractFirstFile, parseJsonArray } from '../../../shared/timeline-formatting.js';
+import { colors } from '../types.js';
+import { formatTime, formatDate, formatDateTime, extractFirstFile, parseJsonArray, formatCompactDate, formatTime24 } from '../../../shared/timeline-formatting.js';
 import * as Markdown from '../formatters/MarkdownFormatter.js';
 import * as Color from '../formatters/ColorFormatter.js';
 
@@ -50,24 +51,18 @@ function getDetailField(obs: Observation, config: ContextConfig): string | null 
 }
 
 /**
- * Render a single day's timeline items
+ * Render a single day's timeline items (markdown path only)
  */
 export function renderDayTimeline(
   day: string,
   dayItems: TimelineItem[],
   fullObservationIds: Set<number>,
   config: ContextConfig,
-  cwd: string,
-  useColors: boolean
+  cwd: string
 ): string[] {
   const output: string[] = [];
 
-  // Day header
-  if (useColors) {
-    output.push(...Color.renderColorDayHeader(day));
-  } else {
-    output.push(...Markdown.renderMarkdownDayHeader(day));
-  }
+  output.push(...Markdown.renderMarkdownDayHeader(day));
 
   let lastTime = '';
   let tableOpen = false;
@@ -76,44 +71,90 @@ export function renderDayTimeline(
     if (item.type === 'summary') {
       const summary = item.data as SummaryTimelineItem;
       const formattedTime = formatDateTime(summary.displayTime);
-
-      if (useColors) {
-        output.push(...Color.renderColorSummaryItem(summary, formattedTime));
-      } else {
-        output.push(...Markdown.renderMarkdownSummaryItem(summary, formattedTime));
-      }
+      output.push(...Markdown.renderMarkdownSummaryItem(summary, formattedTime));
     } else {
       const obs = item.data as Observation;
-      const file = extractFirstFile(obs.files_modified, cwd, obs.files_read);
       const time = formatTime(obs.created_at);
       const showTime = time !== lastTime;
       const timeDisplay = showTime ? time : '';
       lastTime = time;
-
-      const shouldShowFull = fullObservationIds.has(obs.id);
       tableOpen = true;
 
+      const shouldShowFull = fullObservationIds.has(obs.id);
       if (shouldShowFull) {
         const detailField = getDetailField(obs, config);
-
-        if (useColors) {
-          output.push(...Color.renderColorFullObservation(obs, time, showTime, detailField, config));
-        } else {
-          output.push(...Markdown.renderMarkdownFullObservation(obs, timeDisplay, detailField, config));
-        }
+        output.push(...Markdown.renderMarkdownFullObservation(obs, timeDisplay, detailField, config));
       } else {
-        if (useColors) {
-          output.push(Color.renderColorTableRow(obs, time, showTime, config, file));
-        } else {
-          output.push(Markdown.renderMarkdownTableRow(obs, timeDisplay, config));
-        }
+        output.push(Markdown.renderMarkdownTableRow(obs, timeDisplay, config));
       }
     }
   }
 
-  // Close any remaining open table
   if (tableOpen) {
     output.push('');
+  }
+
+  return output;
+}
+
+/**
+ * Render compact color timeline with inline date markers
+ */
+function renderColorTimeline(
+  timeline: TimelineItem[],
+  fullObservationIds: Set<number>,
+  config: ContextConfig,
+  cwd: string
+): string[] {
+  const output: string[] = [];
+  let lastDate = '';
+  let lastTime24 = '';
+  let isFirstItem = true;
+
+  for (const item of timeline) {
+    const itemDate = item.type === 'observation'
+      ? (item.data as Observation).created_at
+      : (item.data as SummaryTimelineItem).displayTime;
+
+    const currentDate = formatCompactDate(itemDate);
+    const dateChanged = currentDate !== lastDate;
+
+    if (item.type === 'summary') {
+      const summary = item.data as SummaryTimelineItem;
+      const time24 = formatTime24(summary.displayTime);
+      // Summary format: #S123  title  (3/12 13:17) or (13:22)
+      const timeStr = dateChanged ? `${currentDate} ${time24}` : time24;
+      output.push(...Color.renderColorSummaryItem(summary, timeStr));
+      lastDate = currentDate;
+      lastTime24 = time24;
+    } else {
+      const obs = item.data as Observation;
+      const file = extractFirstFile(obs.files_modified, cwd, obs.files_read);
+      const time24 = formatTime24(obs.created_at);
+      const showTime = time24 !== lastTime24 || dateChanged;
+
+      // Inline date marker: show date on its own line when day changes (after first day)
+      let dateStr: string | undefined;
+      if (dateChanged && !isFirstItem) {
+        // Emit a standalone date line for day transitions
+        output.push(`${colors.bright}${colors.cyan}${currentDate}${colors.reset}`);
+      } else if (dateChanged && isFirstItem) {
+        // First item: show date inline with time
+        dateStr = currentDate;
+      }
+
+      const shouldShowFull = fullObservationIds.has(obs.id);
+      if (shouldShowFull) {
+        const detailField = getDetailField(obs, config);
+        output.push(...Color.renderColorFullObservation(obs, time24, showTime, detailField, config, dateStr));
+      } else {
+        output.push(Color.renderColorTableRow(obs, time24, showTime, config, file, dateStr));
+      }
+
+      lastDate = currentDate;
+      lastTime24 = time24;
+    }
+    isFirstItem = false;
   }
 
   return output;
@@ -129,11 +170,16 @@ export function renderTimeline(
   cwd: string,
   useColors: boolean
 ): string[] {
+  if (useColors) {
+    return renderColorTimeline(timeline, fullObservationIds, config, cwd);
+  }
+
+  // Markdown path: group by day with day headers (unchanged)
   const output: string[] = [];
   const itemsByDay = groupTimelineByDay(timeline);
 
   for (const [day, dayItems] of itemsByDay) {
-    output.push(...renderDayTimeline(day, dayItems, fullObservationIds, config, cwd, useColors));
+    output.push(...renderDayTimeline(day, dayItems, fullObservationIds, config, cwd));
   }
 
   return output;
