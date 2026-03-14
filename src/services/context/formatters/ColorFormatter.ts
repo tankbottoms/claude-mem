@@ -13,6 +13,7 @@ import type {
 import { colors } from '../types.js';
 import { ModeManager } from '../../domain/ModeManager.js';
 import { formatObservationTokenDisplay } from '../TokenCalculator.js';
+import { formatCompactDate, formatTime24 } from '../../../shared/timeline-formatting.js';
 
 /**
  * Format current date/time for header display
@@ -129,52 +130,54 @@ export function renderColorFileHeader(file: string): string[] {
 }
 
 /**
- * Render colored table row for observation
+ * Render colored table row for observation (compact format)
+ * dateStr is shown only when the day changes (passed by TimelineRenderer)
  */
 export function renderColorTableRow(
   obs: Observation,
   time: string,
   showTime: boolean,
   config: ContextConfig,
-  file?: string
+  file?: string,
+  dateStr?: string
 ): string {
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
-  const { readTokens, discoveryTokens, workEmoji } = formatObservationTokenDisplay(obs, config);
+  const typeId = obs.type || '';
 
-  const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
-  const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
-  const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const idPad = `#${obs.id}`.padEnd(6);
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timePart = showTime ? `${colors.dim}${datePart}${time}${colors.reset}` : ' '.repeat((datePart + time).length);
+  const typePart = typeId ? `${icon} ${typeId}` : '';
   const filePart = file && file !== 'General' ? `  ${colors.dim}${file.split('/').pop()}${colors.reset}` : '';
 
-  return `  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${title}${filePart} ${readPart} ${discoveryPart}`;
+  return `  ${colors.dim}${idPad}${colors.reset} ${timePart}  ${typePart ? `${typePart}  ` : ''}${title}${filePart}`;
 }
 
 /**
- * Render colored full observation
+ * Render colored full observation (compact format)
  */
 export function renderColorFullObservation(
   obs: Observation,
   time: string,
   showTime: boolean,
   detailField: string | null,
-  config: ContextConfig
+  config: ContextConfig,
+  dateStr?: string
 ): string[] {
   const output: string[] = [];
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
-  const { readTokens, discoveryTokens, workEmoji } = formatObservationTokenDisplay(obs, config);
+  const typeId = obs.type || '';
 
-  const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
-  const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
-  const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const idPad = `#${obs.id}`.padEnd(6);
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timePart = showTime ? `${colors.dim}${datePart}${time}${colors.reset}` : ' '.repeat((datePart + time).length);
+  const typePart = typeId ? `${icon} ${typeId}` : '';
 
-  output.push(`  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${colors.bright}${title}${colors.reset}`);
+  output.push(`  ${colors.dim}${idPad}${colors.reset} ${timePart}  ${typePart ? `${typePart}  ` : ''}${colors.bright}${title}${colors.reset}`);
   if (detailField) {
     output.push(`    ${colors.dim}${detailField}${colors.reset}`);
-  }
-  if (readPart || discoveryPart) {
-    output.push(`    ${readPart} ${discoveryPart}`);
   }
   output.push('');
 
@@ -182,15 +185,15 @@ export function renderColorFullObservation(
 }
 
 /**
- * Render colored summary item in timeline
+ * Render colored summary item in timeline (compact format)
+ * formattedTime should be compact like "3/12 13:17" or "13:22"
  */
 export function renderColorSummaryItem(
   summary: { id: number; request: string | null },
   formattedTime: string
 ): string[] {
-  const summaryTitle = `${summary.request || 'Session started'} (${formattedTime})`;
   return [
-    `${colors.yellow}#S${summary.id}${colors.reset} ${summaryTitle}`
+    `${colors.yellow}#S${summary.id}${colors.reset}  ${summary.request || 'Session started'}  ${colors.dim}(${formattedTime})${colors.reset}`
   ];
 }
 
@@ -226,7 +229,7 @@ export function renderColorFooter(totalDiscoveryTokens: number, totalReadTokens:
   const workTokensK = Math.round(totalDiscoveryTokens / 1000);
   return [
     '',
-    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t. Use the claude-mem skill to access memories by ID.${colors.reset}`
+    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t.${colors.reset}`
   ];
 }
 
