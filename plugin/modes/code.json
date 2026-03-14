@@ -7,43 +7,43 @@
       "id": "bugfix",
       "label": "Bug Fix",
       "description": "Something was broken, now fixed",
-      "emoji": "🔴",
-      "work_emoji": "🛠️"
+      "emoji": "\udb82\ude2f",
+      "work_emoji": "\udb82\ude2f"
     },
     {
       "id": "feature",
       "label": "Feature",
       "description": "New capability or functionality added",
-      "emoji": "🟣",
-      "work_emoji": "🛠️"
+      "emoji": "\ueb65",
+      "work_emoji": "\ueb65"
     },
     {
       "id": "refactor",
       "label": "Refactor",
       "description": "Code restructured, behavior unchanged",
-      "emoji": "🔄",
-      "work_emoji": "🛠️"
+      "emoji": "\udb84\udc2b",
+      "work_emoji": "\udb84\udc2b"
     },
     {
       "id": "change",
       "label": "Change",
       "description": "Generic modification (docs, config, misc)",
-      "emoji": "✅",
-      "work_emoji": "🛠️"
+      "emoji": "\uf126",
+      "work_emoji": "\uf126"
     },
     {
       "id": "discovery",
       "label": "Discovery",
       "description": "Learning about existing system",
-      "emoji": "🔵",
-      "work_emoji": "🔍"
+      "emoji": "\ueb51",
+      "work_emoji": "\ueb51"
     },
     {
       "id": "decision",
       "label": "Decision",
       "description": "Architectural/design choice with rationale",
-      "emoji": "⚖️",
-      "work_emoji": "⚖️"
+      "emoji": "\udb82\uddbb",
+      "work_emoji": "\udb82\uddbb"
     }
   ],
   "observation_concepts": [
