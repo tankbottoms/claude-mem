@@ -64,17 +64,31 @@ if curl -sf http://127.0.0.1:37777/api/health > /dev/null 2>&1; then
   sleep 2
 fi
 
+# Find Bun executable (may not be in PATH)
+find_bun() {
+  command -v bun 2>/dev/null && return
+  for p in "$HOME/.bun/bin/bun" /usr/local/bin/bun /opt/homebrew/bin/bun /home/linuxbrew/.linuxbrew/bin/bun; do
+    [ -x "$p" ] && echo "$p" && return
+  done
+  echo ""
+}
+
 # Start worker
 echo "Starting worker..."
 if systemctl --user is-active claude-mem-worker &>/dev/null 2>&1; then
   systemctl --user restart claude-mem-worker
   echo "  Restarted via systemd"
 else
+  BUN=$(find_bun)
+  if [ -z "$BUN" ]; then
+    echo "  ERROR: Bun not found. Install from https://bun.sh"
+    exit 1
+  fi
   # Use the highest version cache dir (most recent plugin version)
   WORKER=$(ls -d "$HOME/.claude/plugins/cache/thedotmack/claude-mem"/*/scripts/worker-service.cjs 2>/dev/null | sort -V | tail -1)
   [ -z "$WORKER" ] && WORKER="${TARGETS[0]}/worker-service.cjs"
-  nohup bun run "$WORKER" > /tmp/claude-mem-worker.log 2>&1 &
-  echo "  Started worker (pid $!) from $(dirname "$WORKER")"
+  nohup "$BUN" run "$WORKER" > /tmp/claude-mem-worker.log 2>&1 &
+  echo "  Started worker (pid $!) from $(dirname "$WORKER") using $BUN"
 fi
 
 # Verify
