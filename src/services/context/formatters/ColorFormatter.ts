@@ -211,14 +211,14 @@ export function renderColorSummaryField(label: string, value: string | null, col
     'Next Steps': '\uf061',
   };
   const glyph = glyphs[label] || '\u25cf';
-  // Format: glyph + 2 spaces + colon + 4 spaces + text
-  // Glyph(2col) + 2 spaces + colon + 4 spaces = 9 visual columns
-  // When text wraps, indent aligns under text start (9 spaces)
-  const prefix = `${color}${glyph}${colors.reset}  :    `;
-  const indent = '         ';
+  // Format: glyph + 4 spaces + text (no colon)
+  // Glyph(2col) + 4 spaces = 6 visual columns
+  // When text wraps, indent aligns under text start (6 spaces)
+  const prefix = `${color}${glyph}${colors.reset}    `;
+  const indent = '      ';
   const words = value.split(' ');
   const maxWidth = 120;
-  const prefixLen = 9; // glyph(2col) + 2 spaces + colon + 4 spaces = 9 visual columns
+  const prefixLen = 6; // glyph(2col) + 4 spaces = 6 visual columns
   const lines: string[] = [];
   let currentLine = '';
 
