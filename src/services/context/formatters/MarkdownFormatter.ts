@@ -201,20 +201,19 @@ export function renderMarkdownSummaryItem(
 export function renderMarkdownSummaryField(label: string, value: string | null): string[] {
   if (!value) return [];
   const glyphs: Record<string, string> = {
-    'Investigated': '\uf002',
-    'Learned': '\uf0eb',
-    'Completed': '\uf00c',
-    'Next Steps': '\uf061',
+    'Investigated': '\u{F0349}',  // nf-md-magnify
+    'Learned': '\u{F06E8}',       // nf-md-lightbulb_on
+    'Completed': '\u{F012C}',     // nf-md-check
+    'Next Steps': '\u{F0054}',    // nf-md-arrow_right
   };
   const glyph = glyphs[label] || '\u25cf';
-  // Format: glyph + 4 spaces + text (no colon)
-  // Glyph(2col) + 4 spaces = 6 visual columns
-  // When text wraps, indent aligns under text start (6 spaces)
-  const prefix = `${glyph}    `;
-  const indent = '      ';
+  // Format: glyph + 2 spaces + text
+  // When text wraps, indent aligns under text start
+  const prefix = `${glyph}  `;
+  const indent = '    ';
   const words = value.split(' ');
   const maxWidth = 120;
-  const prefixLen = 6; // glyph(2col) + 4 spaces = 6 visual columns
+  const prefixLen = 4; // glyph(2col) + 2 spaces = 4 visual columns
   const lines: string[] = [];
   let currentLine = '';
 
