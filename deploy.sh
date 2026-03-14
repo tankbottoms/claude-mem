@@ -36,11 +36,18 @@ if [ ${#TARGETS[@]} -eq 0 ]; then
   exit 1
 fi
 
-# Copy artifacts
+# Copy artifacts (scripts + modes)
+MODES="$REPO_DIR/plugin/modes"
 for target in "${TARGETS[@]}"; do
   cp "$SCRIPTS/context-generator.cjs" "$target/"
   cp "$SCRIPTS/mcp-server.cjs" "$target/"
   cp "$SCRIPTS/worker-service.cjs" "$target/"
+  # Sync mode configs (nerd font glyphs etc.) to parent dir
+  PARENT="$(dirname "$target")"
+  if [ -d "$MODES" ]; then
+    mkdir -p "$PARENT/modes"
+    cp "$MODES"/*.json "$PARENT/modes/" 2>/dev/null || true
+  fi
   echo "  -> $target"
 done
 
