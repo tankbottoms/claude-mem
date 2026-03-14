@@ -7,7 +7,6 @@
 import type {
   ContextConfig,
   Observation,
-  SessionSummary,
   TokenEconomics,
   PriorMessages,
 } from '../types.js';
@@ -192,8 +191,7 @@ export function renderMarkdownSummaryItem(
 ): string[] {
   const summaryTitle = `${summary.request || 'Session started'} (${formattedTime})`;
   return [
-    `**#S${summary.id}** ${summaryTitle}`,
-    ''
+    `**#S${summary.id}** ${summaryTitle}`
   ];
 }
 
@@ -263,7 +261,6 @@ export function renderMarkdownPreviouslySection(priorMessages: PriorMessages): s
 export function renderMarkdownFooter(totalDiscoveryTokens: number, totalReadTokens: number): string[] {
   const workTokensK = Math.round(totalDiscoveryTokens / 1000);
   return [
-    '',
     `Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t. Use the claude-mem skill to access memories by ID.`
   ];
 }

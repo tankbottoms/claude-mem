@@ -66,13 +66,20 @@ export function renderDayTimeline(
 
   let lastTime = '';
   let tableOpen = false;
+  let hadSummaries = false;
 
   for (const item of dayItems) {
     if (item.type === 'summary') {
       const summary = item.data as SummaryTimelineItem;
       const formattedTime = formatDateTime(summary.displayTime);
       output.push(...Markdown.renderMarkdownSummaryItem(summary, formattedTime));
+      hadSummaries = true;
     } else {
+      // Add blank line between summary items and observation table
+      if (hadSummaries && !tableOpen) {
+        output.push('');
+        hadSummaries = false;
+      }
       const obs = item.data as Observation;
       const time = formatTime(obs.created_at);
       const showTime = time !== lastTime;
