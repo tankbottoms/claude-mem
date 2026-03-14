@@ -209,12 +209,14 @@ export function renderMarkdownSummaryField(label: string, value: string | null):
     'Next Steps': '\uf061',
   };
   const glyph = glyphs[label] || '\u25cf';
-  // Format: 2 spaces + glyph + colon + 2 spaces + text
-  // When text wraps, indent aligns under text start (7 spaces = "  X:  " width)
-  const indent = '       ';
+  // Format: glyph + colon + 2 spaces + text (glyph starts under #)
+  // Glyph renders 2 columns wide, so visual prefix = 2+1+2 = 5 columns
+  // When text wraps, indent aligns under text start (5 spaces)
+  const prefix = `${glyph}:  `;
+  const indent = '     ';
   const words = value.split(' ');
-  const maxWidth = 80;
-  const prefixLen = 7; // "  X:  " is 7 chars
+  const maxWidth = 120;
+  const prefixLen = 5; // glyph(2col) + colon + 2 spaces = 5 visual columns
   const lines: string[] = [];
   let currentLine = '';
 
@@ -231,11 +233,10 @@ export function renderMarkdownSummaryField(label: string, value: string | null):
   if (currentLine) lines.push(currentLine);
 
   const result: string[] = [];
-  result.push(`  ${glyph}:  ${lines[0] || ''}`);
+  result.push(`${prefix}${lines[0] || ''}`);
   for (const line of lines.slice(1)) {
     result.push(indent + line);
   }
-  result.push('');
   return result;
 }
 

@@ -211,9 +211,35 @@ export function renderColorSummaryField(label: string, value: string | null, col
     'Next Steps': '\uf061',
   };
   const glyph = glyphs[label] || '\u25cf';
-  // Format: 2 spaces, colored glyph+colon, 2 spaces, then text
-  const prefix = `  ${color}${glyph}:${colors.reset}  `;
-  return [prefix + value, ''];
+  // Format: glyph + colon + 2 spaces + text (glyph starts under #)
+  // Glyph renders 2 columns wide, so visual prefix = 2+1+2 = 5 columns
+  // When text wraps, indent aligns under text start (5 spaces)
+  const prefix = `${color}${glyph}:${colors.reset}  `;
+  const indent = '     ';
+  const words = value.split(' ');
+  const maxWidth = 120;
+  const prefixLen = 5; // glyph(2col) + colon + 2 spaces = 5 visual columns
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLen = currentLine ? currentLine.length + 1 + word.length : word.length;
+    const lineMax = lines.length === 0 ? maxWidth - prefixLen : maxWidth - indent.length;
+    if (currentLine && testLen > lineMax) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = currentLine ? currentLine + ' ' + word : word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  const result: string[] = [];
+  result.push(`${prefix}${lines[0] || ''}`);
+  for (const line of lines.slice(1)) {
+    result.push(indent + line);
+  }
+  return result;
 }
 
 /**

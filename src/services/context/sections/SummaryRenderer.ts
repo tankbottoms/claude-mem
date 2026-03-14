@@ -47,7 +47,7 @@ export function renderSummaryFields(
   summary: SessionSummary,
   useColors: boolean
 ): string[] {
-  const output: string[] = [''];
+  const output: string[] = [];
 
   if (useColors) {
     output.push(...Color.renderColorSummaryField('Investigated', summary.investigated, colors.blue));
