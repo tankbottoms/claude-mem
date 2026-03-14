@@ -305,17 +305,19 @@ export class FederationSyncRoutes extends BaseRouteHandler {
 
     if (!existing) {
       const now = new Date().toISOString();
+      const nowEpoch = Math.floor(Date.now() / 1000);
       db.prepare(`
         INSERT INTO sdk_sessions (
           content_session_id, memory_session_id, project, status,
-          created_at, custom_title
-        ) VALUES (?, ?, ?, ?, ?, ?)
+          started_at, started_at_epoch, custom_title
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(
         `federated-${sourceMachine}-${memorySessionId}`,
         memorySessionId,
         project,
         'completed',
         now,
+        nowEpoch,
         `Synced from ${sourceMachine}`
       );
     }
