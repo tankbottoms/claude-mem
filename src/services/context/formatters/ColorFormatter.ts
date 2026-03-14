@@ -131,6 +131,7 @@ export function renderColorFileHeader(file: string): string[] {
 
 /**
  * Render colored table row for observation (compact format)
+ * Layout: #ID  [glyph type]  title  file  (time)
  * dateStr is shown only when the day changes (passed by TimelineRenderer)
  */
 export function renderColorTableRow(
@@ -146,16 +147,17 @@ export function renderColorTableRow(
   const typeId = obs.type || '';
 
   const idPad = `#${obs.id}`.padEnd(6);
-  const datePart = dateStr ? `${dateStr} ` : '';
-  const timePart = showTime ? `${colors.dim}${datePart}${time}${colors.reset}` : ' '.repeat((datePart + time).length);
   const typePart = typeId ? `${icon} ${typeId}` : '';
   const filePart = file && file !== 'General' ? `  ${colors.dim}${file.split('/').pop()}${colors.reset}` : '';
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timeSuffix = showTime ? `  ${colors.dim}(${datePart}${time})${colors.reset}` : '';
 
-  return `  ${colors.dim}${idPad}${colors.reset} ${timePart}  ${typePart ? `${typePart}  ` : ''}${title}${filePart}`;
+  return `  ${colors.dim}${idPad}${colors.reset}  ${typePart ? `${typePart}  ` : ''}${title}${filePart}${timeSuffix}`;
 }
 
 /**
  * Render colored full observation (compact format)
+ * Layout: #ID  [glyph type]  title  (time)
  */
 export function renderColorFullObservation(
   obs: Observation,
@@ -171,11 +173,11 @@ export function renderColorFullObservation(
   const typeId = obs.type || '';
 
   const idPad = `#${obs.id}`.padEnd(6);
-  const datePart = dateStr ? `${dateStr} ` : '';
-  const timePart = showTime ? `${colors.dim}${datePart}${time}${colors.reset}` : ' '.repeat((datePart + time).length);
   const typePart = typeId ? `${icon} ${typeId}` : '';
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timeSuffix = showTime ? `  ${colors.dim}(${datePart}${time})${colors.reset}` : '';
 
-  output.push(`  ${colors.dim}${idPad}${colors.reset} ${timePart}  ${typePart ? `${typePart}  ` : ''}${colors.bright}${title}${colors.reset}`);
+  output.push(`  ${colors.dim}${idPad}${colors.reset}  ${typePart ? `${typePart}  ` : ''}${colors.bright}${title}${colors.reset}${timeSuffix}`);
   if (detailField) {
     output.push(`    ${colors.dim}${detailField}${colors.reset}`);
   }
