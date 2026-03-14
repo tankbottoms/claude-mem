@@ -44,22 +44,34 @@ for target in "${TARGETS[@]}"; do
   echo "  -> $target"
 done
 
-# Restart worker
+# Kill any running worker first (critical: old process holds the port)
 echo ""
-echo "Restarting worker..."
-if systemctl --user is-active claude-mem-worker &>/dev/null; then
+echo "Stopping old worker..."
+pkill -f worker-service.cjs 2>/dev/null && echo "  Killed old worker" || echo "  No worker running"
+sleep 3
+
+# Verify port is free
+if curl -sf http://127.0.0.1:37777/api/health > /dev/null 2>&1; then
+  echo "  WARNING: Port 37777 still occupied, force killing..."
+  pkill -9 -f worker-service.cjs 2>/dev/null || true
+  sleep 2
+fi
+
+# Start worker
+echo "Starting worker..."
+if systemctl --user is-active claude-mem-worker &>/dev/null 2>&1; then
   systemctl --user restart claude-mem-worker
   echo "  Restarted via systemd"
 else
-  pkill -f worker-service.cjs 2>/dev/null || true
-  sleep 2
-  WORKER=$(echo "${TARGETS[0]}/worker-service.cjs")
+  # Use the highest version cache dir (most recent plugin version)
+  WORKER=$(ls -d "$HOME/.claude/plugins/cache/thedotmack/claude-mem"/*/scripts/worker-service.cjs 2>/dev/null | sort -V | tail -1)
+  [ -z "$WORKER" ] && WORKER="${TARGETS[0]}/worker-service.cjs"
   nohup bun run "$WORKER" > /tmp/claude-mem-worker.log 2>&1 &
-  echo "  Started worker (pid $!)"
+  echo "  Started worker (pid $!) from $(dirname "$WORKER")"
 fi
 
 # Verify
-sleep 3
+sleep 5
 if curl -sf http://127.0.0.1:37777/api/health > /dev/null 2>&1; then
   echo ""
   echo "Worker healthy. Deploy complete."
