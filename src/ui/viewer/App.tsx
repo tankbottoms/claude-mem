@@ -13,6 +13,7 @@ import { mergeAndDeduplicateByProject } from './utils/data';
 
 export function App() {
   const [currentFilter, setCurrentFilter] = useState('');
+  const [machineFilter, setMachineFilter] = useState('');
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
   const [paginatedObservations, setPaginatedObservations] = useState<Observation[]>([]);
@@ -23,15 +24,25 @@ export function App() {
   const { settings, saveSettings, isSaving, saveStatus } = useSettings();
   const { stats, refreshStats } = useStats();
   const { preference, resolvedTheme, setThemePreference } = useTheme();
-  const pagination = usePagination(currentFilter);
+  const pagination = usePagination(currentFilter, machineFilter);
 
-  // Merge SSE live data with paginated data, filtering by project when active
+  // Handle machine filter toggle (clicking same machine clears filter)
+  const handleMachineFilter = useCallback((machine: string) => {
+    setMachineFilter(prev => prev === machine ? '' : machine);
+  }, []);
+
+  // Merge SSE live data with paginated data, filtering by project and machine when active
   const allObservations = useMemo(() => {
-    const live = currentFilter
+    let live = currentFilter
       ? observations.filter(o => o.project === currentFilter)
       : observations;
+    if (machineFilter === '__local__') {
+      live = live.filter(o => !o.source_machine);
+    } else if (machineFilter) {
+      live = live.filter(o => o.source_machine === machineFilter);
+    }
     return mergeAndDeduplicateByProject(live, paginatedObservations);
-  }, [observations, paginatedObservations, currentFilter]);
+  }, [observations, paginatedObservations, currentFilter, machineFilter]);
 
   const allSummaries = useMemo(() => {
     const live = currentFilter
@@ -87,7 +98,7 @@ export function App() {
     setPaginatedPrompts([]);
     handleLoadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilter]);
+  }, [currentFilter, machineFilter]);
 
   return (
     <>
@@ -103,6 +114,38 @@ export function App() {
         onContextPreviewToggle={toggleContextPreview}
       />
 
+      {machineFilter && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 16px',
+          backgroundColor: 'var(--color-card-bg, #161b22)',
+          borderBottom: '1px solid var(--color-border, #30363d)',
+          fontSize: '0.8rem',
+          color: 'var(--color-secondary, #8b949e)',
+        }}>
+          <span>Filtered by machine:</span>
+          <span style={{
+            padding: '1px 6px',
+            borderRadius: '3px',
+            backgroundColor: machineFilter === '__local__' ? '#1a365d' : '#2d3748',
+            color: machineFilter === '__local__' ? '#63b3ed' : '#a0aec0',
+            border: `1px solid ${machineFilter === '__local__' ? '#2b6cb0' : '#4a5568'}`,
+            fontFamily: 'monospace',
+          }}>
+            {machineFilter === '__local__' ? 'local' : machineFilter}
+          </span>
+          <span
+            onClick={() => setMachineFilter('')}
+            style={{ cursor: 'pointer', color: '#f85149', fontWeight: 'bold' }}
+            title="Clear machine filter"
+          >
+            x
+          </span>
+        </div>
+      )}
+
       <Feed
         observations={allObservations}
         summaries={allSummaries}
@@ -110,6 +153,7 @@ export function App() {
         onLoadMore={handleLoadMore}
         isLoading={pagination.observations.isLoading || pagination.summaries.isLoading || pagination.prompts.isLoading}
         hasMore={pagination.observations.hasMore || pagination.summaries.hasMore || pagination.prompts.hasMore}
+        onMachineFilter={handleMachineFilter}
       />
 
       <ContextSettingsModal

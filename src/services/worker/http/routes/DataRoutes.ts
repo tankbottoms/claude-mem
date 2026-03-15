@@ -66,8 +66,8 @@ export class DataRoutes extends BaseRouteHandler {
    * Get paginated observations
    */
   private handleGetObservations = this.wrapHandler((req: Request, res: Response): void => {
-    const { offset, limit, project } = this.parsePaginationParams(req);
-    const result = this.paginationHelper.getObservations(offset, limit, project);
+    const { offset, limit, project, sourceMachine } = this.parsePaginationParams(req);
+    const result = this.paginationHelper.getObservations(offset, limit, project, sourceMachine);
     res.json(result);
   });
 
@@ -299,12 +299,13 @@ export class DataRoutes extends BaseRouteHandler {
   /**
    * Parse pagination parameters from request query
    */
-  private parsePaginationParams(req: Request): { offset: number; limit: number; project?: string } {
+  private parsePaginationParams(req: Request): { offset: number; limit: number; project?: string; sourceMachine?: string } {
     const offset = parseInt(req.query.offset as string, 10) || 0;
     const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100); // Max 100
     const project = req.query.project as string | undefined;
+    const sourceMachine = req.query.source_machine as string | undefined;
 
-    return { offset, limit, project };
+    return { offset, limit, project, sourceMachine };
   }
 
   /**
