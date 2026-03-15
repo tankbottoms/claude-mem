@@ -33,7 +33,7 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Context window management constants (defaults, overridable via settings)
 const DEFAULT_MAX_CONTEXT_MESSAGES = 20;  // Maximum messages to keep in conversation history
-const DEFAULT_MAX_ESTIMATED_TOKENS = 100000;  // ~100k tokens max context (safety limit)
+const DEFAULT_MAX_ESTIMATED_TOKENS = 32000;  // ~32k tokens — fits local models, LiteLLM context_window_fallback handles overflow to Gemini
 const CHARS_PER_TOKEN_ESTIMATE = 4;  // Conservative estimate: 1 token = 4 chars
 
 // OpenAI-compatible message format
