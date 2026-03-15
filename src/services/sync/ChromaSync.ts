@@ -9,7 +9,8 @@
  * The chroma-mcp server handles its own embedding and persistent storage,
  * eliminating the need for chromadb npm package and ONNX/WASM dependencies.
  *
- * Design: Fail-fast with no fallbacks - if Chroma is unavailable, syncing fails.
+ * Design: Core sync is fail-fast. Federation import uses try-return-false pattern
+ * with deferred backfill via needs_chroma_sync column.
  */
 
 import { ChromaMcpManager } from './ChromaMcpManager.js';
@@ -23,7 +24,7 @@ interface ChromaDocument {
   metadata: Record<string, string | number>;
 }
 
-interface StoredObservation {
+export interface StoredObservation {
   id: number;
   memory_session_id: string;
   project: string;
@@ -339,6 +340,38 @@ export class ChromaSync {
     });
 
     await this.addDocuments(documents);
+  }
+
+  /**
+   * Sync a stored observation (from SQLite) to ChromaDB.
+   * Used by federation import and deferred backfill.
+   * Delegates to the same granular multi-document pipeline as backfill.
+   */
+  async syncStoredObservation(obs: StoredObservation): Promise<void> {
+    await this.ensureCollectionExists();
+    const docs = this.formatObservationDocs(obs);
+    if (docs.length > 0) {
+      await this.addDocuments(docs);
+    }
+  }
+
+  /**
+   * Attempt to sync an imported observation to ChromaDB.
+   * Returns true if synced, false if ChromaDB unavailable.
+   * Does NOT throw -- caller should mark needs_chroma_sync=1 on false.
+   */
+  static async trySyncImportedObservation(obs: StoredObservation): Promise<boolean> {
+    try {
+      const chromaMcp = ChromaMcpManager.getInstance();
+      if (!chromaMcp.isAvailable()) return false;
+
+      const sync = new ChromaSync(obs.project);
+      await sync.syncStoredObservation(obs);
+      return true;
+    } catch (error) {
+      logger.debug('CHROMA_SYNC', `Failed to sync imported observation ${obs.id}: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
   }
 
   /**
