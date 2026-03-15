@@ -14,9 +14,10 @@ interface FeedProps {
   isLoading: boolean;
   hasMore: boolean;
   onMachineFilter?: (machine: string) => void;
+  localHostname?: string;
 }
 
-export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, hasMore, onMachineFilter }: FeedProps) {
+export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, hasMore, onMachineFilter, localHostname }: FeedProps) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
@@ -68,7 +69,7 @@ export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, 
         {items.map(item => {
           const key = `${item.itemType}-${item.id}`;
           if (item.itemType === 'observation') {
-            return <ObservationCard key={key} observation={item} onMachineFilter={onMachineFilter} />;
+            return <ObservationCard key={key} observation={item} onMachineFilter={onMachineFilter} localHostname={localHostname} />;
           } else if (item.itemType === 'summary') {
             return <SummaryCard key={key} summary={item} />;
           } else {

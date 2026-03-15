@@ -57,6 +57,21 @@ async function buildViewer() {
       }
     }
 
+    // Copy Font Awesome assets
+    const faDir = path.join(rootDir, 'node_modules/@fortawesome/fontawesome-free');
+    if (fs.existsSync(faDir)) {
+      const faCssDir = path.join(rootDir, 'plugin/ui/assets/fa');
+      const faWebfontsDir = path.join(rootDir, 'plugin/ui/assets/webfonts');
+      fs.mkdirSync(faCssDir, { recursive: true });
+      fs.mkdirSync(faWebfontsDir, { recursive: true });
+      fs.copyFileSync(path.join(faDir, 'css/all.min.css'), path.join(faCssDir, 'all.min.css'));
+      const webfonts = fs.readdirSync(path.join(faDir, 'webfonts'));
+      for (const file of webfonts) {
+        fs.copyFileSync(path.join(faDir, 'webfonts', file), path.join(faWebfontsDir, file));
+      }
+      console.log(`  - Font Awesome CSS + ${webfonts.length} webfont files`);
+    }
+
     // Copy icon SVG files
     const srcUiDir = path.join(rootDir, 'src/ui');
     const outputUiDir = path.join(rootDir, 'plugin/ui');

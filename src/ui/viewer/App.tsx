@@ -20,7 +20,7 @@ export function App() {
   const [paginatedSummaries, setPaginatedSummaries] = useState<Summary[]>([]);
   const [paginatedPrompts, setPaginatedPrompts] = useState<UserPrompt[]>([]);
 
-  const { observations, summaries, prompts, projects, isProcessing, queueDepth, isConnected } = useSSE();
+  const { observations, summaries, prompts, projects, localHostname, isProcessing, queueDepth, isConnected } = useSSE();
   const { settings, saveSettings, isSaving, saveStatus } = useSettings();
   const { stats, refreshStats } = useStats();
   const { preference, resolvedTheme, setThemePreference } = useTheme();
@@ -127,14 +127,13 @@ export function App() {
         }}>
           <span>Filtered by machine:</span>
           <span style={{
-            padding: '1px 6px',
+            padding: '2px 6px',
             borderRadius: '3px',
-            backgroundColor: machineFilter === '__local__' ? '#1a365d' : '#2d3748',
-            color: machineFilter === '__local__' ? '#63b3ed' : '#a0aec0',
-            border: `1px solid ${machineFilter === '__local__' ? '#2b6cb0' : '#4a5568'}`,
+            background: 'var(--color-type-badge-bg)',
+            color: 'var(--color-type-badge-text)',
             fontFamily: 'monospace',
           }}>
-            {machineFilter === '__local__' ? 'local' : machineFilter}
+            {machineFilter === '__local__' ? (localHostname || 'local') : machineFilter}
           </span>
           <span
             onClick={() => setMachineFilter('')}
@@ -154,6 +153,7 @@ export function App() {
         isLoading={pagination.observations.isLoading || pagination.summaries.isLoading || pagination.prompts.isLoading}
         hasMore={pagination.observations.hasMore || pagination.summaries.hasMore || pagination.prompts.hasMore}
         onMachineFilter={handleMachineFilter}
+        localHostname={localHostname}
       />
 
       <ContextSettingsModal

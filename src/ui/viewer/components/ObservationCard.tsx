@@ -5,6 +5,7 @@ import { formatDate } from '../utils/formatters';
 interface ObservationCardProps {
   observation: Observation;
   onMachineFilter?: (machine: string) => void;
+  localHostname?: string;
 }
 
 // Helper to strip project root from file paths
@@ -31,7 +32,7 @@ function stripProjectRoot(filePath: string): string {
   return parts.length > 3 ? parts.slice(-3).join('/') : filePath;
 }
 
-export function ObservationCard({ observation, onMachineFilter }: ObservationCardProps) {
+export function ObservationCard({ observation, onMachineFilter, localHostname }: ObservationCardProps) {
   const [showFacts, setShowFacts] = useState(false);
   const [showNarrative, setShowNarrative] = useState(false);
   const date = formatDate(observation.created_at_epoch);
@@ -54,43 +55,22 @@ export function ObservationCard({ observation, onMachineFilter }: ObservationCar
             {observation.type}
           </span>
           <span className="card-project">{observation.project}</span>
-          {observation.source_machine ? (
-            <span
-              onClick={() => onMachineFilter?.(observation.source_machine!)}
-              style={{
-                fontSize: '0.7rem',
-                padding: '1px 6px',
-                borderRadius: '3px',
-                backgroundColor: '#2d3748',
-                color: '#a0aec0',
-                border: '1px solid #4a5568',
-                marginLeft: '4px',
-                fontFamily: 'monospace',
-                cursor: onMachineFilter ? 'pointer' : 'default',
-              }}
-              title={`Filter by ${observation.source_machine}`}
-            >
-              {observation.source_machine}
-            </span>
-          ) : (
-            <span
-              onClick={() => onMachineFilter?.('__local__')}
-              style={{
-                fontSize: '0.7rem',
-                padding: '1px 6px',
-                borderRadius: '3px',
-                backgroundColor: '#1a365d',
-                color: '#63b3ed',
-                border: '1px solid #2b6cb0',
-                marginLeft: '4px',
-                fontFamily: 'monospace',
-                cursor: onMachineFilter ? 'pointer' : 'default',
-              }}
-              title="Filter by local observations"
-            >
-              local
-            </span>
-          )}
+          <span
+            onClick={() => onMachineFilter?.(observation.source_machine || '__local__')}
+            style={{
+              fontSize: '0.7rem',
+              padding: '2px 6px',
+              borderRadius: '3px',
+              background: 'var(--color-type-badge-bg)',
+              color: 'var(--color-type-badge-text)',
+              marginLeft: '4px',
+              fontFamily: 'monospace',
+              cursor: onMachineFilter ? 'pointer' : 'default',
+            }}
+            title={`Filter by ${observation.source_machine || localHostname || 'local'}`}
+          >
+            {observation.source_machine || localHostname || 'local'}
+          </span>
         </div>
         <div className="view-mode-toggles">
           {hasFactsContent && (

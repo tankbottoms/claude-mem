@@ -8,6 +8,7 @@ export function useSSE() {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [prompts, setPrompts] = useState<UserPrompt[]>([]);
   const [projects, setProjects] = useState<string[]>([]);
+  const [localHostname, setLocalHostname] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [queueDepth, setQueueDepth] = useState(0);
@@ -56,6 +57,7 @@ export function useSSE() {
             });
             // Only load projects list - data will come via pagination
             setProjects(data.projects || []);
+            if (data.hostname) setLocalHostname(data.hostname);
             break;
 
           case 'new_observation':
@@ -105,5 +107,5 @@ export function useSSE() {
     };
   }, []);
 
-  return { observations, summaries, prompts, projects, isProcessing, queueDepth, isConnected };
+  return { observations, summaries, prompts, projects, localHostname, isProcessing, queueDepth, isConnected };
 }

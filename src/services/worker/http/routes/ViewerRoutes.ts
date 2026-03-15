@@ -8,6 +8,7 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { readFileSync, existsSync } from 'fs';
+import { hostname } from 'os';
 import { logger } from '../../../../utils/logger.js';
 import { getPackageRoot } from '../../../../shared/paths.js';
 import { SSEBroadcaster } from '../../SSEBroadcaster.js';
@@ -81,6 +82,7 @@ export class ViewerRoutes extends BaseRouteHandler {
     this.sseBroadcaster.broadcast({
       type: 'initial_load',
       projects: allProjects,
+      hostname: hostname(),
       timestamp: Date.now()
     });
 
