@@ -16,6 +16,35 @@ const ansiConverter = new AnsiToHtml({
   stream: false
 });
 
+/**
+ * Map Nerd Font Private Use Area codepoints to Font Awesome HTML.
+ * These glyphs render in terminal fonts but not in browser fonts.
+ */
+const NERD_FONT_TO_FA: Record<string, string> = {
+  // Observation type icons (from code.json mode)
+  '\u{F0A2F}': '<i class="fas fa-bug" style="color:#f85149"></i>',           // bugfix
+  '\uEB65':    '<i class="fas fa-star" style="color:#3fb950"></i>',           // feature
+  '\u{F102B}': '<i class="fas fa-recycle" style="color:#d2a8ff"></i>',        // refactor
+  '\uF126':    '<i class="fas fa-code-branch" style="color:#58a6ff"></i>',    // change
+  '\uEB51':    '<i class="fas fa-search" style="color:#58a6ff"></i>',         // discovery
+  '\u{F09BB}': '<i class="fas fa-balance-scale" style="color:#d29922"></i>',  // decision
+  // Summary section icons (from formatters)
+  '\u{F0349}': '<i class="fas fa-search"></i>',        // investigated (magnify)
+  '\u{F06E8}': '<i class="fas fa-lightbulb"></i>',     // learned (lightbulb)
+  '\u{F012C}': '<i class="fas fa-check"></i>',         // completed (check)
+  '\u{F0054}': '<i class="fas fa-arrow-right"></i>',   // next steps (arrow_right)
+};
+
+/** Replace Nerd Font glyphs with FA icons in HTML-escaped content */
+function replaceNerdFontGlyphs(text: string): string {
+  let result = text;
+  for (const [glyph, fa] of Object.entries(NERD_FONT_TO_FA)) {
+    // The glyph may be HTML-escaped by ansi-to-html, so check both raw and escaped forms
+    result = result.replaceAll(glyph, fa);
+  }
+  return result;
+}
+
 export function TerminalPreview({ content, isLoading = false, className = '' }: TerminalPreviewProps) {
   const preRef = useRef<HTMLPreElement>(null);
   const scrollTopRef = useRef(0);
@@ -28,8 +57,9 @@ export function TerminalPreview({ content, isLoading = false, className = '' }: 
     }
     if (!content) return '';
     const convertedHtml = ansiConverter.toHtml(content);
-    return DOMPurify.sanitize(convertedHtml, {
-      ALLOWED_TAGS: ['span', 'div', 'br'],
+    const withFaIcons = replaceNerdFontGlyphs(convertedHtml);
+    return DOMPurify.sanitize(withFaIcons, {
+      ALLOWED_TAGS: ['span', 'div', 'br', 'i'],
       ALLOWED_ATTR: ['style', 'class'],
       ALLOW_DATA_ATTR: false
     });
