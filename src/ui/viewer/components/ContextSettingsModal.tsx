@@ -174,6 +174,7 @@ export function ContextSettingsModal({
           <h2>Settings</h2>
           <div className="header-controls">
             <label className="preview-selector">
+              <i className="fas fa-folder-open" style={{ fontSize: '13px', color: 'var(--color-secondary)', marginRight: '6px' }}></i>
               Preview for:
               <select
                 value={selectedProject || ''}

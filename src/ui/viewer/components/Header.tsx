@@ -92,15 +92,18 @@ export function Header({
           </svg>
         </a>
         <GitHubStarsButton username="thedotmack" repo="claude-mem" />
-        <select
-          value={currentFilter}
-          onChange={e => onFilterChange(e.target.value)}
-        >
-          <option value="">All Projects</option>
-          {projects.map(project => (
-            <option key={project} value={project}>{project}</option>
-          ))}
-        </select>
+        <div className="project-select-wrapper">
+          <i className="fas fa-folder-open" style={{ fontSize: '13px', color: 'var(--color-secondary)', marginRight: '4px' }}></i>
+          <select
+            value={currentFilter}
+            onChange={e => onFilterChange(e.target.value)}
+          >
+            <option value="">All Projects</option>
+            {projects.map(project => (
+              <option key={project} value={project}>{project}</option>
+            ))}
+          </select>
+        </div>
         <ThemeToggle
           preference={themePreference}
           onThemeChange={onThemeChange}

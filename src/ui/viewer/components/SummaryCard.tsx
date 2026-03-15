@@ -6,9 +6,10 @@ interface SummaryCardProps {
   summary: Summary;
   localHostname?: string;
   onMachineFilter?: (machine: string) => void;
+  projectMachines?: Record<string, Array<{ machine: string; count: number }>>;
 }
 
-export function SummaryCard({ summary, localHostname, onMachineFilter }: SummaryCardProps) {
+export function SummaryCard({ summary, localHostname, onMachineFilter, projectMachines }: SummaryCardProps) {
   const date = formatDate(summary.created_at_epoch);
 
   const sections = [
@@ -41,6 +42,29 @@ export function SummaryCard({ summary, localHostname, onMachineFilter }: Summary
               {localHostname}
             </span>
           )}
+          {/* Show other machines that also have this project */}
+          {projectMachines?.[summary.project]
+            ?.filter(pm => pm.machine !== localHostname)
+            .map(pm => (
+              <span
+                key={pm.machine}
+                onClick={() => onMachineFilter?.(pm.machine)}
+                style={{
+                  fontSize: '0.65rem',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  background: 'transparent',
+                  border: '1px solid var(--color-border, #30363d)',
+                  color: 'var(--color-secondary, #8b949e)',
+                  fontFamily: 'monospace',
+                  cursor: onMachineFilter ? 'pointer' : 'default',
+                  opacity: 0.7,
+                }}
+                title={`Also on ${pm.machine} (${pm.count} observations)`}
+              >
+                {pm.machine}
+              </span>
+            ))}
         </div>
         {summary.request && (
           <h2 className="summary-title">{summary.request}</h2>

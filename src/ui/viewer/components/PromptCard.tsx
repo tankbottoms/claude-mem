@@ -6,9 +6,10 @@ interface PromptCardProps {
   prompt: UserPrompt;
   localHostname?: string;
   onMachineFilter?: (machine: string) => void;
+  projectMachines?: Record<string, Array<{ machine: string; count: number }>>;
 }
 
-export function PromptCard({ prompt, localHostname, onMachineFilter }: PromptCardProps) {
+export function PromptCard({ prompt, localHostname, onMachineFilter, projectMachines }: PromptCardProps) {
   const date = formatDate(prompt.created_at_epoch);
 
   return (
@@ -34,6 +35,29 @@ export function PromptCard({ prompt, localHostname, onMachineFilter }: PromptCar
               {localHostname}
             </span>
           )}
+          {/* Show other machines that also have this project */}
+          {projectMachines?.[prompt.project]
+            ?.filter(pm => pm.machine !== localHostname)
+            .map(pm => (
+              <span
+                key={pm.machine}
+                onClick={() => onMachineFilter?.(pm.machine)}
+                style={{
+                  fontSize: '0.65rem',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  background: 'transparent',
+                  border: '1px solid var(--color-border, #30363d)',
+                  color: 'var(--color-secondary, #8b949e)',
+                  fontFamily: 'monospace',
+                  cursor: onMachineFilter ? 'pointer' : 'default',
+                  opacity: 0.7,
+                }}
+                title={`Also on ${pm.machine} (${pm.count} observations)`}
+              >
+                {pm.machine}
+              </span>
+            ))}
         </div>
       </div>
       <div className="card-content">

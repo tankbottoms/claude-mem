@@ -15,9 +15,10 @@ interface FeedProps {
   hasMore: boolean;
   onMachineFilter?: (machine: string) => void;
   localHostname?: string;
+  projectMachines?: Record<string, Array<{ machine: string; count: number }>>;
 }
 
-export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, hasMore, onMachineFilter, localHostname }: FeedProps) {
+export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, hasMore, onMachineFilter, localHostname, projectMachines }: FeedProps) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
@@ -69,11 +70,11 @@ export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, 
         {items.map(item => {
           const key = `${item.itemType}-${item.id}`;
           if (item.itemType === 'observation') {
-            return <ObservationCard key={key} observation={item} onMachineFilter={onMachineFilter} localHostname={localHostname} />;
+            return <ObservationCard key={key} observation={item} onMachineFilter={onMachineFilter} localHostname={localHostname} projectMachines={projectMachines} />;
           } else if (item.itemType === 'summary') {
-            return <SummaryCard key={key} summary={item} localHostname={localHostname} onMachineFilter={onMachineFilter} />;
+            return <SummaryCard key={key} summary={item} localHostname={localHostname} onMachineFilter={onMachineFilter} projectMachines={projectMachines} />;
           } else {
-            return <PromptCard key={key} prompt={item} localHostname={localHostname} onMachineFilter={onMachineFilter} />;
+            return <PromptCard key={key} prompt={item} localHostname={localHostname} onMachineFilter={onMachineFilter} projectMachines={projectMachines} />;
           }
         })}
         {items.length === 0 && !isLoading && (

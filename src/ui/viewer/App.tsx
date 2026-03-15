@@ -75,8 +75,9 @@ export function App() {
     setFederationStatsOpen(prev => !prev);
   }, []);
 
-  // Get machine count from stats
+  // Get machine count and project-machine mappings from stats
   const machineCount = stats?.federation?.machines?.length;
+  const projectMachines = stats?.federation?.projectMachines;
 
   // Handle loading more data
   const handleLoadMore = useCallback(async () => {
@@ -166,6 +167,7 @@ export function App() {
         hasMore={pagination.observations.hasMore || pagination.summaries.hasMore || pagination.prompts.hasMore}
         onMachineFilter={handleMachineFilter}
         localHostname={localHostname}
+        projectMachines={projectMachines}
       />
 
       <ContextSettingsModal

@@ -6,6 +6,7 @@ interface ObservationCardProps {
   observation: Observation;
   onMachineFilter?: (machine: string) => void;
   localHostname?: string;
+  projectMachines?: Record<string, Array<{ machine: string; count: number }>>;
 }
 
 // Helper to strip project root from file paths
@@ -32,7 +33,7 @@ function stripProjectRoot(filePath: string): string {
   return parts.length > 3 ? parts.slice(-3).join('/') : filePath;
 }
 
-export function ObservationCard({ observation, onMachineFilter, localHostname }: ObservationCardProps) {
+export function ObservationCard({ observation, onMachineFilter, localHostname, projectMachines }: ObservationCardProps) {
   const [showFacts, setShowFacts] = useState(false);
   const [showNarrative, setShowNarrative] = useState(false);
   const date = formatDate(observation.created_at_epoch);
@@ -71,6 +72,29 @@ export function ObservationCard({ observation, onMachineFilter, localHostname }:
           >
             {observation.source_machine || localHostname || '...'}
           </span>
+          {/* Show other machines that also have this project */}
+          {projectMachines?.[observation.project]
+            ?.filter(pm => pm.machine !== (observation.source_machine || localHostname))
+            .map(pm => (
+              <span
+                key={pm.machine}
+                onClick={() => onMachineFilter?.(pm.machine)}
+                style={{
+                  fontSize: '0.65rem',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  background: 'transparent',
+                  border: '1px solid var(--color-border, #30363d)',
+                  color: 'var(--color-secondary, #8b949e)',
+                  fontFamily: 'monospace',
+                  cursor: onMachineFilter ? 'pointer' : 'default',
+                  opacity: 0.7,
+                }}
+                title={`Also on ${pm.machine} (${pm.count} observations)`}
+              >
+                {pm.machine}
+              </span>
+            ))}
         </div>
         <div className="view-mode-toggles">
           {hasFactsContent && (
