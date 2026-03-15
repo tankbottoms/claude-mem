@@ -53,6 +53,33 @@ export function ObservationCard({ observation }: ObservationCardProps) {
             {observation.type}
           </span>
           <span className="card-project">{observation.project}</span>
+          {observation.source_machine ? (
+            <span style={{
+              fontSize: '0.7rem',
+              padding: '1px 6px',
+              borderRadius: '3px',
+              backgroundColor: '#2d3748',
+              color: '#a0aec0',
+              border: '1px solid #4a5568',
+              marginLeft: '4px',
+              fontFamily: 'monospace',
+            }}>
+              {observation.source_machine}
+            </span>
+          ) : (
+            <span style={{
+              fontSize: '0.7rem',
+              padding: '1px 6px',
+              borderRadius: '3px',
+              backgroundColor: '#1a365d',
+              color: '#63b3ed',
+              border: '1px solid #2b6cb0',
+              marginLeft: '4px',
+              fontFamily: 'monospace',
+            }}>
+              local
+            </span>
+          )}
         </div>
         <div className="view-mode-toggles">
           {hasFactsContent && (

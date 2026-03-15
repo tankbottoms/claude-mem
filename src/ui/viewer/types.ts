@@ -14,6 +14,7 @@ export interface Observation {
   prompt_number: number | null;
   created_at: string;
   created_at_epoch: number;
+  source_machine?: string | null;
 }
 
 export interface Summary {
