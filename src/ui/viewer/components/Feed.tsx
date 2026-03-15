@@ -71,9 +71,9 @@ export function Feed({ observations, summaries, prompts, onLoadMore, isLoading, 
           if (item.itemType === 'observation') {
             return <ObservationCard key={key} observation={item} onMachineFilter={onMachineFilter} localHostname={localHostname} />;
           } else if (item.itemType === 'summary') {
-            return <SummaryCard key={key} summary={item} />;
+            return <SummaryCard key={key} summary={item} localHostname={localHostname} onMachineFilter={onMachineFilter} />;
           } else {
-            return <PromptCard key={key} prompt={item} />;
+            return <PromptCard key={key} prompt={item} localHostname={localHostname} onMachineFilter={onMachineFilter} />;
           }
         })}
         {items.length === 0 && !isLoading && (

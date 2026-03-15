@@ -4,9 +4,11 @@ import { formatDate } from "../utils/formatters";
 
 interface SummaryCardProps {
   summary: Summary;
+  localHostname?: string;
+  onMachineFilter?: (machine: string) => void;
 }
 
-export function SummaryCard({ summary }: SummaryCardProps) {
+export function SummaryCard({ summary, localHostname, onMachineFilter }: SummaryCardProps) {
   const date = formatDate(summary.created_at_epoch);
 
   const sections = [
@@ -22,6 +24,23 @@ export function SummaryCard({ summary }: SummaryCardProps) {
         <div className="summary-badge-row">
           <span className="card-type summary-badge">Session Summary</span>
           <span className="summary-project-badge">{summary.project}</span>
+          {localHostname && (
+            <span
+              onClick={() => onMachineFilter?.('__local__')}
+              style={{
+                fontSize: '0.7rem',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                background: 'var(--color-type-badge-bg)',
+                color: 'var(--color-type-badge-text)',
+                fontFamily: 'monospace',
+                cursor: onMachineFilter ? 'pointer' : 'default',
+              }}
+              title={`Filter by ${localHostname}`}
+            >
+              {localHostname}
+            </span>
+          )}
         </div>
         {summary.request && (
           <h2 className="summary-title">{summary.request}</h2>

@@ -7,6 +7,7 @@
  */
 
 import { Database } from 'bun:sqlite';
+import { hostname } from 'os';
 import { logger } from '../../utils/logger.js';
 import type { ObservationInput } from './observations/types.js';
 import type { SummaryInput } from './summaries/types.js';
@@ -65,11 +66,12 @@ export function storeObservationsAndMarkComplete(
     const observationIds: number[] = [];
 
     // 1. Store all observations (with content-hash deduplication)
+    const localHostname = hostname();
     const obsStmt = db.prepare(`
       INSERT INTO observations
       (memory_session_id, project, type, title, subtitle, facts, narrative, concepts,
-       files_read, files_modified, prompt_number, discovery_tokens, content_hash, created_at, created_at_epoch)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       files_read, files_modified, prompt_number, discovery_tokens, content_hash, source_machine, created_at, created_at_epoch)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const observation of observations) {
@@ -94,6 +96,7 @@ export function storeObservationsAndMarkComplete(
         promptNumber || null,
         discoveryTokens,
         contentHash,
+        localHostname,
         timestampIso,
         timestampEpoch
       );
@@ -184,11 +187,12 @@ export function storeObservations(
     const observationIds: number[] = [];
 
     // 1. Store all observations (with content-hash deduplication)
+    const localHostname = hostname();
     const obsStmt = db.prepare(`
       INSERT INTO observations
       (memory_session_id, project, type, title, subtitle, facts, narrative, concepts,
-       files_read, files_modified, prompt_number, discovery_tokens, content_hash, created_at, created_at_epoch)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       files_read, files_modified, prompt_number, discovery_tokens, content_hash, source_machine, created_at, created_at_epoch)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const observation of observations) {
@@ -213,6 +217,7 @@ export function storeObservations(
         promptNumber || null,
         discoveryTokens,
         contentHash,
+        localHostname,
         timestampIso,
         timestampEpoch
       );

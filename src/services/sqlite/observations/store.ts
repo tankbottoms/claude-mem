@@ -4,6 +4,7 @@
  */
 
 import { createHash } from 'crypto';
+import { hostname } from 'os';
 import { Database } from 'bun:sqlite';
 import { logger } from '../../../utils/logger.js';
 import { getCurrentProjectName } from '../../../shared/paths.js';
@@ -75,8 +76,8 @@ export function storeObservation(
   const stmt = db.prepare(`
     INSERT INTO observations
     (memory_session_id, project, type, title, subtitle, facts, narrative, concepts,
-     files_read, files_modified, prompt_number, discovery_tokens, content_hash, created_at, created_at_epoch)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     files_read, files_modified, prompt_number, discovery_tokens, content_hash, source_machine, created_at, created_at_epoch)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -93,6 +94,7 @@ export function storeObservation(
     promptNumber || null,
     discoveryTokens,
     contentHash,
+    hostname(),
     timestampIso,
     timestampEpoch
   );

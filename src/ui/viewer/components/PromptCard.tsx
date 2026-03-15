@@ -4,9 +4,11 @@ import { formatDate } from '../utils/formatters';
 
 interface PromptCardProps {
   prompt: UserPrompt;
+  localHostname?: string;
+  onMachineFilter?: (machine: string) => void;
 }
 
-export function PromptCard({ prompt }: PromptCardProps) {
+export function PromptCard({ prompt, localHostname, onMachineFilter }: PromptCardProps) {
   const date = formatDate(prompt.created_at_epoch);
 
   return (
@@ -15,6 +17,23 @@ export function PromptCard({ prompt }: PromptCardProps) {
         <div className="card-header-left">
           <span className="card-type">Prompt</span>
           <span className="card-project">{prompt.project}</span>
+          {localHostname && (
+            <span
+              onClick={() => onMachineFilter?.('__local__')}
+              style={{
+                fontSize: '0.7rem',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                background: 'var(--color-type-badge-bg)',
+                color: 'var(--color-type-badge-text)',
+                fontFamily: 'monospace',
+                cursor: onMachineFilter ? 'pointer' : 'default',
+              }}
+              title={`Filter by ${localHostname}`}
+            >
+              {localHostname}
+            </span>
+          )}
         </div>
       </div>
       <div className="card-content">

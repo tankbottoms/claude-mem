@@ -67,9 +67,9 @@ export function ObservationCard({ observation, onMachineFilter, localHostname }:
               fontFamily: 'monospace',
               cursor: onMachineFilter ? 'pointer' : 'default',
             }}
-            title={`Filter by ${observation.source_machine || localHostname || 'local'}`}
+            title={`Filter by ${observation.source_machine || localHostname || 'this machine'}`}
           >
-            {observation.source_machine || localHostname || 'local'}
+            {observation.source_machine || localHostname || '...'}
           </span>
         </div>
         <div className="view-mode-toggles">
