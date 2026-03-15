@@ -14,6 +14,7 @@ import express, { Request, Response } from 'express';
 import { BaseRouteHandler } from '../BaseRouteHandler.js';
 import { logger } from '../../../../utils/logger.js';
 import type { DatabaseManager } from '../../DatabaseManager.js';
+import { ChromaSync, type StoredObservation } from '../../../sync/ChromaSync.js';
 
 const EXPORT_DEFAULT_LIMIT = 500;
 const EXPORT_MAX_LIMIT = 2000;
@@ -100,7 +101,7 @@ export class FederationSyncRoutes extends BaseRouteHandler {
    * Body: { machine: string, observations: [...], summaries: [...] }
    * Imports observations from a remote machine, deduplicating by content_hash.
    */
-  private handleImport = this.wrapHandler((req: Request, res: Response): void => {
+  private handleImport = this.wrapHandler(async (req: Request, res: Response): Promise<void> => {
     const { machine, data } = req.body;
     // Support both formats: top-level arrays and nested under `data` (export format)
     const observations = Array.isArray(req.body.observations) ? req.body.observations : data?.observations;
@@ -123,6 +124,11 @@ export class FederationSyncRoutes extends BaseRouteHandler {
     let obsSkipped = 0;
     let sumImported = 0;
     let sumSkipped = 0;
+    let chromaSynced = 0;
+
+    // Capture max id before import loop to identify newly inserted rows
+    const maxIdRow = db.prepare('SELECT MAX(id) as maxId FROM observations').get() as { maxId: number | null };
+    const firstImportedId = maxIdRow.maxId ?? -1;
 
     // Import observations
     if (Array.isArray(observations)) {
@@ -187,6 +193,27 @@ export class FederationSyncRoutes extends BaseRouteHandler {
       }
     }
 
+    // Batch ChromaDB indexing for imported observations
+    if (obsImported > 0 && firstImportedId !== null) {
+      const importedObs = db.prepare(
+        `SELECT id, memory_session_id, project, text, type, title, subtitle,
+                facts, narrative, concepts, files_read, files_modified,
+                prompt_number, discovery_tokens, created_at, created_at_epoch
+         FROM observations WHERE id > ? ORDER BY id ASC LIMIT ?`
+      ).all(firstImportedId, obsImported) as StoredObservation[];
+
+      for (const obs of importedObs) {
+        const synced = await ChromaSync.trySyncImportedObservation(obs);
+        if (synced) {
+          chromaSynced++;
+        } else {
+          // ChromaDB unavailable -- mark remaining for deferred sync
+          db.prepare('UPDATE observations SET needs_chroma_sync = 1 WHERE id >= ? AND source_machine IS NOT NULL').run(obs.id);
+          break;
+        }
+      }
+    }
+
     // Import session summaries
     if (Array.isArray(summaries)) {
       const checkSyncSum = db.prepare(
@@ -233,7 +260,7 @@ export class FederationSyncRoutes extends BaseRouteHandler {
       success: true,
       machine: this.machineId,
       from: machine,
-      observations: { imported: obsImported, skipped: obsSkipped },
+      observations: { imported: obsImported, skipped: obsSkipped, chroma_synced: chromaSynced },
       summaries: { imported: sumImported, skipped: sumSkipped }
     });
   });
