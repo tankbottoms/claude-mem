@@ -459,10 +459,11 @@ export class WorkerService {
         });
       }
 
-      // Connect to MCP server
+      // Connect to MCP server — use process.execPath (absolute bun/node path) instead of
+      // bare 'node' which may not be on PATH when the worker runs as a detached daemon.
       const mcpServerPath = path.join(__dirname, 'mcp-server.cjs');
       const transport = new StdioClientTransport({
-        command: 'node',
+        command: process.execPath,
         args: [mcpServerPath],
         env: process.env
       });

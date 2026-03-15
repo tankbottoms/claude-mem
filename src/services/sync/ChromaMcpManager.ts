@@ -515,6 +515,22 @@ export class ChromaMcpManager {
       }
     }
 
+    // Ensure PATH includes common user binary directories where uvx is installed.
+    // When the worker daemon is spawned from a non-login shell context (e.g., Claude Code),
+    // these paths may be missing, causing "uvx: not found" failures.
+    const home = os.homedir();
+    const extraPaths = [
+      path.join(home, '.local', 'bin'),    // uv/uvx default install location
+      path.join(home, '.bun', 'bin'),       // bun
+      '/usr/local/bin',
+    ];
+    const currentPath = baseEnv['PATH'] || '';
+    const pathDirs = new Set(currentPath.split(path.delimiter));
+    const missing = extraPaths.filter(p => !pathDirs.has(p));
+    if (missing.length > 0) {
+      baseEnv['PATH'] = [...missing, currentPath].join(path.delimiter);
+    }
+
     const combinedCertPath = this.getCombinedCertPath();
     if (!combinedCertPath) {
       return baseEnv;
