@@ -129,22 +129,47 @@ function collectStdin() {
       return;
     }
 
+    let resolved = false;
     const chunks = [];
-    process.stdin.on('data', (chunk) => chunks.push(chunk));
+
+    function done(data) {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(safetyTimer);
+      process.stdin.removeAllListeners();
+      process.stdin.pause();
+      resolve(data);
+    }
+
+    // Try to parse accumulated chunks as complete JSON.
+    // Hook input is always a single JSON object -- once it parses, stop waiting.
+    function tryResolveJson() {
+      if (chunks.length === 0) return false;
+      const combined = Buffer.concat(chunks);
+      try {
+        JSON.parse(combined.toString());
+        done(combined);
+        return true;
+      } catch { return false; }
+    }
+
+    process.stdin.on('data', (chunk) => {
+      chunks.push(chunk);
+      tryResolveJson(); // short-circuit as soon as JSON is complete
+    });
     process.stdin.on('end', () => {
-      resolve(chunks.length > 0 ? Buffer.concat(chunks) : null);
+      done(chunks.length > 0 ? Buffer.concat(chunks) : null);
     });
     process.stdin.on('error', () => {
       // stdin may not be readable (e.g. already closed), treat as no data
-      resolve(null);
+      done(null);
     });
 
-    // Safety: if no data arrives within 5s, proceed without stdin
-    setTimeout(() => {
-      process.stdin.removeAllListeners();
-      process.stdin.pause();
-      resolve(chunks.length > 0 ? Buffer.concat(chunks) : null);
-    }, 5000);
+    // Safety: if JSON never completes within 2s, proceed with whatever we have.
+    // Reduced from 5s -- hook inputs are small JSON arriving in <100ms.
+    const safetyTimer = setTimeout(() => {
+      done(chunks.length > 0 ? Buffer.concat(chunks) : null);
+    }, 2000);
   });
 }
 

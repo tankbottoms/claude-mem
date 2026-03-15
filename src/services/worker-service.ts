@@ -357,6 +357,22 @@ export class WorkerService {
     // Start HTTP server FIRST - make port available immediately
     await this.server.listen(port, host);
 
+    // Start optional HTTPS listener for Tailscale MagicDNS access
+    if (SettingsDefaultsManager.getBool('CLAUDE_MEM_HTTPS_ENABLED')) {
+      try {
+        const { loadTlsOptions } = await import('./server/TlsCertResolver.js');
+        const tlsOptions = loadTlsOptions();
+        if (tlsOptions) {
+          const httpsPort = SettingsDefaultsManager.getInt('CLAUDE_MEM_HTTPS_PORT');
+          await this.server.listenHttps(httpsPort, '0.0.0.0', tlsOptions);
+        } else {
+          logger.warn('SYSTEM', 'HTTPS enabled but no TLS certificates found — running HTTP only');
+        }
+      } catch (error) {
+        logger.error('SYSTEM', 'Failed to start HTTPS listener', {}, error as Error);
+      }
+    }
+
     // Worker writes its own PID - reliable on all platforms
     // This happens after listen() succeeds, ensuring the worker is actually ready
     // On Windows, the spawner's PID is cmd.exe (useless), so worker must write its own
@@ -895,6 +911,7 @@ export class WorkerService {
 
     await performGracefulShutdown({
       server: this.server.getHttpServer(),
+      httpsServer: this.server.getHttpsServer(),
       sessionManager: this.sessionManager,
       mcpClient: this.mcpClient,
       dbManager: this.dbManager,

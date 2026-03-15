@@ -35,31 +35,32 @@ export const sessionCompleteHandler: EventHandler = {
       contentSessionId: sessionId
     });
 
-    try {
-      // Call the session complete endpoint by contentSessionId
-      const response = await fetch(`http://127.0.0.1:${port}/api/sessions/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contentSessionId: sessionId
-        })
-      });
-
+    // Fire-and-forget: send the request but don't await the response.
+    // SessionEnd hooks run during Claude Code shutdown and get cancelled
+    // if they take too long. The session completion is best-effort --
+    // the orphan reaper handles cleanup for any missed sessions.
+    fetch(`http://127.0.0.1:${port}/api/sessions/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contentSessionId: sessionId
+      })
+    }).then(response => {
       if (!response.ok) {
-        const text = await response.text();
-        logger.warn('HOOK', 'session-complete: Failed to complete session', {
-          status: response.status,
-          body: text
+        response.text().then(text => {
+          logger.warn('HOOK', 'session-complete: Failed to complete session', {
+            status: response.status,
+            body: text
+          });
         });
       } else {
         logger.info('HOOK', 'Session completed successfully', { contentSessionId: sessionId });
       }
-    } catch (error) {
-      // Log but don't fail - session may already be gone
+    }).catch(error => {
       logger.warn('HOOK', 'session-complete: Error completing session', {
         error: (error as Error).message
       });
-    }
+    });
 
     return { continue: true, suppressOutput: true };
   }

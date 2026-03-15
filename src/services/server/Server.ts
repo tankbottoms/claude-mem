@@ -11,6 +11,7 @@
 
 import express, { Request, Response, Application } from 'express';
 import http from 'http';
+import https from 'https';
 import * as fs from 'fs';
 import path from 'path';
 import { ALLOWED_OPERATIONS, ALLOWED_TOPICS } from './allowed-constants.js';
@@ -69,6 +70,8 @@ export interface ServerOptions {
 export class Server {
   readonly app: Application;
   private server: http.Server | null = null;
+  private httpsServer: https.Server | null = null;
+  private httpsPort: number | null = null;
   private readonly options: ServerOptions;
   private readonly startTime: number = Date.now();
 
@@ -100,9 +103,42 @@ export class Server {
   }
 
   /**
-   * Close the HTTP server
+   * Start an HTTPS listener on a separate port, sharing the same Express app.
+   */
+  async listenHttps(port: number, host: string, tlsOptions: https.ServerOptions): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.httpsServer = https.createServer(tlsOptions, this.app);
+      this.httpsServer.listen(port, host, () => {
+        this.httpsPort = port;
+        logger.info('SYSTEM', 'HTTPS server started', { host, port, pid: process.pid });
+        resolve();
+      });
+      this.httpsServer.on('error', reject);
+    });
+  }
+
+  /**
+   * Get the underlying HTTPS server (if started)
+   */
+  getHttpsServer(): https.Server | null {
+    return this.httpsServer;
+  }
+
+  /**
+   * Close both HTTP and HTTPS servers
    */
   async close(): Promise<void> {
+    // Close HTTPS server first (optional listener)
+    if (this.httpsServer) {
+      this.httpsServer.closeAllConnections();
+      await new Promise<void>((resolve, reject) => {
+        this.httpsServer!.close(err => err ? reject(err) : resolve());
+      });
+      this.httpsServer = null;
+      this.httpsPort = null;
+      logger.info('SYSTEM', 'HTTPS server closed');
+    }
+
     if (!this.server) return;
 
     // Close all active connections
@@ -172,6 +208,10 @@ export class Server {
         initialized: this.options.getInitializationComplete(),
         mcpReady: this.options.getMcpReady(),
         ai: this.options.getAiStatus(),
+        https: {
+          enabled: this.httpsServer !== null,
+          port: this.httpsPort,
+        },
       });
     });
 

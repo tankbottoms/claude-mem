@@ -41,6 +41,7 @@ export interface StoppableService {
  */
 export interface GracefulShutdownConfig {
   server: http.Server | null;
+  httpsServer?: http.Server | null;
   sessionManager: ShutdownableService;
   mcpClient?: CloseableClient;
   dbManager?: CloseableDatabase;
@@ -64,7 +65,13 @@ export async function performGracefulShutdown(config: GracefulShutdownConfig): P
   const childPids = await getChildProcesses(process.pid);
   logger.info('SYSTEM', 'Found child processes', { count: childPids.length, pids: childPids });
 
-  // STEP 2: Close HTTP server first
+  // STEP 2: Close HTTPS server (if running)
+  if (config.httpsServer) {
+    await closeHttpServer(config.httpsServer);
+    logger.info('SYSTEM', 'HTTPS server closed');
+  }
+
+  // STEP 2b: Close HTTP server
   if (config.server) {
     await closeHttpServer(config.server);
     logger.info('SYSTEM', 'HTTP server closed');
