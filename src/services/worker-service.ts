@@ -20,6 +20,7 @@ import { getAuthMethodDescription } from '../shared/EnvManager.js';
 import { logger } from '../utils/logger.js';
 import { ChromaMcpManager } from './sync/ChromaMcpManager.js';
 import { ChromaSync } from './sync/ChromaSync.js';
+import { ChromaSyncQueue } from './sync/ChromaSyncQueue.js';
 import { FederationSyncRoutes } from './worker/http/routes/FederationSyncRoutes.js';
 
 // Windows: avoid repeated spawn popups when startup fails (issue #921)
@@ -443,6 +444,18 @@ export class WorkerService {
           logger.info('CHROMA_SYNC', 'Backfill check complete for all projects');
         }).catch(error => {
           logger.error('CHROMA_SYNC', 'Backfill failed (non-blocking)', {}, error as Error);
+        });
+      }
+
+      // Process any observations deferred from federation import (fire-and-forget)
+      if (this.chromaMcpManager) {
+        const db = this.dbManager.getSessionStore().db;
+        ChromaSyncQueue.processQueue(db).then(count => {
+          if (count > 0) {
+            logger.info('CHROMA_QUEUE', `Startup: synced ${count} deferred federation observations`);
+          }
+        }).catch(error => {
+          logger.error('CHROMA_QUEUE', 'Startup queue processing failed (non-blocking)', {}, error as Error);
         });
       }
 
