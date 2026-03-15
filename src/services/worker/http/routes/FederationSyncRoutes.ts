@@ -101,7 +101,10 @@ export class FederationSyncRoutes extends BaseRouteHandler {
    * Imports observations from a remote machine, deduplicating by content_hash.
    */
   private handleImport = this.wrapHandler((req: Request, res: Response): void => {
-    const { machine, observations, summaries } = req.body;
+    const { machine, data } = req.body;
+    // Support both formats: top-level arrays and nested under `data` (export format)
+    const observations = Array.isArray(req.body.observations) ? req.body.observations : data?.observations;
+    const summaries = Array.isArray(req.body.summaries) ? req.body.summaries : data?.summaries;
 
     if (!machine || typeof machine !== 'string') {
       this.badRequest(res, 'machine identifier is required');
