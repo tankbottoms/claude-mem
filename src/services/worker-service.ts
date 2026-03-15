@@ -1209,26 +1209,37 @@ async function main() {
         process.exit(0);
       }
 
+      // Stderr fallback so crashes appear in system logs even if the logger fails.
+      const stderrLog = (msg: string) => process.stderr.write(`[claude-mem-worker] ${new Date().toISOString()} ${msg}\n`);
+
       // Prevent daemon from dying silently on unhandled errors.
       // The HTTP server can continue serving even if a background task throws.
       process.on('unhandledRejection', (reason) => {
-        logger.error('SYSTEM', 'Unhandled rejection in daemon', {
-          reason: reason instanceof Error ? reason.message : String(reason)
-        });
+        const msg = reason instanceof Error ? reason.message : String(reason);
+        stderrLog(`UNHANDLED REJECTION: ${msg}`);
+        logger.error('SYSTEM', 'Unhandled rejection in daemon', { reason: msg });
       });
       process.on('uncaughtException', (error) => {
+        stderrLog(`UNCAUGHT EXCEPTION: ${error.message}\n${error.stack}`);
         logger.error('SYSTEM', 'Uncaught exception in daemon', {}, error as Error);
         // Don't exit — keep the HTTP server running
       });
 
-      const worker = new WorkerService();
-      worker.start().catch((error) => {
-        logger.failure('SYSTEM', 'Worker failed to start', {}, error as Error);
+      try {
+        const worker = new WorkerService();
+        worker.start().catch((error) => {
+          stderrLog(`WORKER START FAILED: ${error instanceof Error ? error.message : String(error)}`);
+          logger.failure('SYSTEM', 'Worker failed to start', {}, error as Error);
+          removePidFile();
+          // Exit gracefully: Windows Terminal won't keep tab open on exit 0
+          // The wrapper/plugin will handle restart logic if needed
+          process.exit(0);
+        });
+      } catch (error) {
+        stderrLog(`CONSTRUCTOR CRASH: ${error instanceof Error ? error.message : String(error)}`);
         removePidFile();
-        // Exit gracefully: Windows Terminal won't keep tab open on exit 0
-        // The wrapper/plugin will handle restart logic if needed
         process.exit(0);
-      });
+      }
     }
   }
 }
