@@ -51,6 +51,7 @@ export class SessionStore {
     this.addOnUpdateCascadeToForeignKeys();
     this.addObservationContentHashColumn();
     this.addSessionCustomTitleColumn();
+    this.addNeedsChromaSyncColumn();
   }
 
   /**
@@ -871,6 +872,31 @@ export class SessionStore {
     }
 
     this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(23, new Date().toISOString());
+  }
+
+  /**
+   * Add needs_chroma_sync column to observations for deferred ChromaDB indexing (migration 25)
+   *
+   * Federated observations imported from remote machines may not be indexed in ChromaDB at import
+   * time. This column flags rows that need indexing so a background job can process them later.
+   *
+   * - 0 = already indexed in ChromaDB (default for new local observations)
+   * - 1 = needs ChromaDB indexing (set for existing federated observations on migration)
+   */
+  private addNeedsChromaSyncColumn(): void {
+    const applied = this.db.prepare('SELECT version FROM schema_versions WHERE version = ?').get(25) as SchemaVersion | undefined;
+    if (applied) return;
+
+    const tableInfo = this.db.query('PRAGMA table_info(observations)').all() as TableColumnInfo[];
+    const hasColumn = tableInfo.some(col => col.name === 'needs_chroma_sync');
+
+    if (!hasColumn) {
+      this.db.run('ALTER TABLE observations ADD COLUMN needs_chroma_sync INTEGER NOT NULL DEFAULT 0');
+      this.db.run('UPDATE observations SET needs_chroma_sync = 1 WHERE source_machine IS NOT NULL');
+      logger.debug('DB', 'Added needs_chroma_sync column to observations table');
+    }
+
+    this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(25, new Date().toISOString());
   }
 
   /**
