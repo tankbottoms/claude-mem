@@ -583,6 +583,153 @@
       box-shadow: 0 2px 8px rgba(9, 105, 218, 0.25);
     }
 
+    /* Federation badge button */
+    .federation-badge-btn {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 6px;
+      padding: 0 10px;
+      height: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--color-text-secondary);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      font-family: var(--font-terminal);
+      font-size: 12px;
+    }
+    .federation-badge-btn:hover {
+      background: var(--color-bg-card-hover);
+      border-color: var(--color-border-focus);
+      color: var(--color-accent-primary);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+    .federation-count {
+      background: var(--color-accent-primary);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 10px;
+      min-width: 16px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* Federation Stats Modal */
+    .federation-stats-modal {
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 12px;
+      width: min(700px, 90vw);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .fed-stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-border-primary);
+      background: var(--color-bg-header);
+    }
+    .fed-stats-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      letter-spacing: -0.02em;
+    }
+    .fed-stats-body {
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .fed-stats-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+    }
+    .fed-stat-card {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .fed-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      letter-spacing: -0.03em;
+    }
+    .fed-stat-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+    .fed-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fed-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      font-family: var(--font-terminal);
+      margin: 0;
+      display: flex;
+      align-items: center;
+    }
+    .fed-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      font-family: var(--font-terminal);
+    }
+    .fed-table th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--color-border-primary);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .fed-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--color-border-secondary, rgba(128,128,128,0.1));
+      color: var(--color-text-primary);
+    }
+    .fed-table tr:hover td {
+      background: var(--color-bg-card-hover);
+    }
+    .fed-machine-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--color-type-badge-bg);
+      color: var(--color-type-badge-text);
+      font-family: monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
     .community-btn {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);

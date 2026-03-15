@@ -102,7 +102,19 @@ export interface DatabaseStats {
   summaries?: number;
 }
 
+export interface MachineStats {
+  machine: string;
+  count: number;
+  last_seen: number;
+}
+
+export interface FederationStats {
+  machines: MachineStats[];
+  projectMachines: Record<string, Array<{ machine: string; count: number }>>;
+}
+
 export interface Stats {
-  worker?: WorkerStats;
+  worker?: WorkerStats & { hostname?: string };
   database?: DatabaseStats;
+  federation?: FederationStats;
 }

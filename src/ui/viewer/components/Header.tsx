@@ -14,6 +14,8 @@ interface HeaderProps {
   themePreference: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
   onContextPreviewToggle: () => void;
+  onFederationStatsToggle: () => void;
+  machineCount?: number;
 }
 
 export function Header({
@@ -25,7 +27,9 @@ export function Header({
   queueDepth,
   themePreference,
   onThemeChange,
-  onContextPreviewToggle
+  onContextPreviewToggle,
+  onFederationStatsToggle,
+  machineCount
 }: HeaderProps) {
   useSpinningFavicon(isProcessing);
 
@@ -55,6 +59,16 @@ export function Header({
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
         </a>
+        <button
+          className="federation-badge-btn"
+          onClick={onFederationStatsToggle}
+          title="Federation Stats"
+        >
+          <i className="fas fa-network-wired" style={{ fontSize: '14px' }}></i>
+          {machineCount !== undefined && machineCount > 0 && (
+            <span className="federation-count">{machineCount}</span>
+          )}
+        </button>
         <a
           href="https://x.com/Claude_Memory"
           target="_blank"

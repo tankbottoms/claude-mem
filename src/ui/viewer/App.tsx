@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { Feed } from './components/Feed';
 import { ContextSettingsModal } from './components/ContextSettingsModal';
 import { LogsDrawer } from './components/LogsModal';
+import { FederationStatsModal } from './components/FederationStatsModal';
 import { useSSE } from './hooks/useSSE';
 import { useSettings } from './hooks/useSettings';
 import { useStats } from './hooks/useStats';
@@ -16,6 +17,7 @@ export function App() {
   const [machineFilter, setMachineFilter] = useState('');
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [federationStatsOpen, setFederationStatsOpen] = useState(false);
   const [paginatedObservations, setPaginatedObservations] = useState<Observation[]>([]);
   const [paginatedSummaries, setPaginatedSummaries] = useState<Summary[]>([]);
   const [paginatedPrompts, setPaginatedPrompts] = useState<UserPrompt[]>([]);
@@ -68,6 +70,14 @@ export function App() {
     setLogsModalOpen(prev => !prev);
   }, []);
 
+  // Toggle federation stats modal
+  const toggleFederationStats = useCallback(() => {
+    setFederationStatsOpen(prev => !prev);
+  }, []);
+
+  // Get machine count from stats
+  const machineCount = stats?.federation?.machines?.length;
+
   // Handle loading more data
   const handleLoadMore = useCallback(async () => {
     try {
@@ -112,6 +122,8 @@ export function App() {
         themePreference={preference}
         onThemeChange={setThemePreference}
         onContextPreviewToggle={toggleContextPreview}
+        onFederationStatsToggle={toggleFederationStats}
+        machineCount={machineCount}
       />
 
       {machineFilter && (
@@ -175,6 +187,11 @@ export function App() {
           <line x1="12" y1="19" x2="20" y2="19"></line>
         </svg>
       </button>
+
+      <FederationStatsModal
+        isOpen={federationStatsOpen}
+        onClose={toggleFederationStats}
+      />
 
       <LogsDrawer
         isOpen={logsModalOpen}
