@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
+import { FilterBar } from './components/FilterBar';
 import { Feed } from './components/Feed';
 import { ContextSettingsModal } from './components/ContextSettingsModal';
 import { LogsDrawer } from './components/LogsModal';
@@ -15,6 +16,7 @@ import { mergeAndDeduplicateByProject } from './utils/data';
 export function App() {
   const [currentFilter, setCurrentFilter] = useState('');
   const [machineFilter, setMachineFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
   const [federationStatsOpen, setFederationStatsOpen] = useState(false);
@@ -33,7 +35,9 @@ export function App() {
     setMachineFilter(prev => prev === machine ? '' : machine);
   }, []);
 
-  // Merge SSE live data with paginated data, filtering by project and machine when active
+  // Merge SSE live data with paginated data, filtering by project, machine, and search when active
+  const searchLower = searchQuery.toLowerCase().trim();
+
   const allObservations = useMemo(() => {
     let live = currentFilter
       ? observations.filter(o => o.project === currentFilter)
@@ -43,8 +47,17 @@ export function App() {
     } else if (machineFilter) {
       live = live.filter(o => o.source_machine === machineFilter);
     }
-    return mergeAndDeduplicateByProject(live, paginatedObservations);
-  }, [observations, paginatedObservations, currentFilter, machineFilter]);
+    let merged = mergeAndDeduplicateByProject(live, paginatedObservations);
+    if (searchLower) {
+      merged = merged.filter(o =>
+        (o.title || '').toLowerCase().includes(searchLower) ||
+        (o.subtitle || '').toLowerCase().includes(searchLower) ||
+        (o.narrative || '').toLowerCase().includes(searchLower) ||
+        (o.facts || '').toLowerCase().includes(searchLower)
+      );
+    }
+    return merged;
+  }, [observations, paginatedObservations, currentFilter, machineFilter, searchLower]);
 
   const allSummaries = useMemo(() => {
     const live = currentFilter
@@ -60,17 +73,14 @@ export function App() {
     return mergeAndDeduplicateByProject(live, paginatedPrompts);
   }, [prompts, paginatedPrompts, currentFilter]);
 
-  // Toggle context preview modal
   const toggleContextPreview = useCallback(() => {
     setContextPreviewOpen(prev => !prev);
   }, []);
 
-  // Toggle logs modal
   const toggleLogsModal = useCallback(() => {
     setLogsModalOpen(prev => !prev);
   }, []);
 
-  // Toggle federation stats modal
   const toggleFederationStats = useCallback(() => {
     setFederationStatsOpen(prev => !prev);
   }, []);
@@ -78,6 +88,7 @@ export function App() {
   // Get machine count and project-machine mappings from stats
   const machineCount = stats?.federation?.machines?.length;
   const projectMachines = stats?.federation?.projectMachines;
+  const machines = stats?.federation?.machines;
 
   // Handle loading more data
   const handleLoadMore = useCallback(async () => {
@@ -115,9 +126,6 @@ export function App() {
     <>
       <Header
         isConnected={isConnected}
-        projects={projects}
-        currentFilter={currentFilter}
-        onFilterChange={setCurrentFilter}
         isProcessing={isProcessing}
         queueDepth={queueDepth}
         themePreference={preference}
@@ -127,36 +135,18 @@ export function App() {
         machineCount={machineCount}
       />
 
-      {machineFilter && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '6px 16px',
-          backgroundColor: 'var(--color-card-bg, #161b22)',
-          borderBottom: '1px solid var(--color-border, #30363d)',
-          fontSize: '0.8rem',
-          color: 'var(--color-secondary, #8b949e)',
-        }}>
-          <span>Filtered by machine:</span>
-          <span style={{
-            padding: '2px 6px',
-            borderRadius: '3px',
-            background: 'var(--color-type-badge-bg)',
-            color: 'var(--color-type-badge-text)',
-            fontFamily: 'monospace',
-          }}>
-            {machineFilter === '__local__' ? (localHostname || 'local') : machineFilter}
-          </span>
-          <span
-            onClick={() => setMachineFilter('')}
-            style={{ cursor: 'pointer', color: '#f85149', fontWeight: 'bold' }}
-            title="Clear machine filter"
-          >
-            x
-          </span>
-        </div>
-      )}
+      <FilterBar
+        projects={projects}
+        currentFilter={currentFilter}
+        machineFilter={machineFilter}
+        searchQuery={searchQuery}
+        onProjectFilter={setCurrentFilter}
+        onMachineFilter={setMachineFilter}
+        onSearchChange={setSearchQuery}
+        projectMachines={projectMachines}
+        machines={machines}
+        localHostname={localHostname}
+      />
 
       <Feed
         observations={allObservations}
@@ -193,6 +183,11 @@ export function App() {
       <FederationStatsModal
         isOpen={federationStatsOpen}
         onClose={toggleFederationStats}
+        onFilterByProjectMachine={(project: string, machine: string) => {
+          setCurrentFilter(project);
+          setMachineFilter(machine);
+          setFederationStatsOpen(false);
+        }}
       />
 
       <LogsDrawer

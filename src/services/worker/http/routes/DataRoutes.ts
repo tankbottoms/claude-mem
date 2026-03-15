@@ -258,6 +258,20 @@ export class DataRoutes extends BaseRouteHandler {
       projectMachines[row.project].push({ machine: row.machine, count: row.count });
     }
 
+    // Extended stats
+    const projectCount = db.prepare('SELECT COUNT(DISTINCT project) as count FROM observations WHERE project IS NOT NULL').get() as { count: number };
+    const avgChars = db.prepare(`SELECT CAST(AVG(LENGTH(COALESCE(title,'') || COALESCE(subtitle,'') || COALESCE(narrative,'') || COALESCE(facts,''))) as INT) as avg_chars FROM observations`).get() as { avg_chars: number };
+    const avgTokens = db.prepare('SELECT CAST(AVG(discovery_tokens) as INT) as avg_tokens FROM observations WHERE discovery_tokens > 0').get() as { avg_tokens: number };
+
+    // Federation sync count (may not exist on all installs)
+    let syncCount = 0;
+    try {
+      const syncRow = db.prepare('SELECT COUNT(*) as count FROM federation_sync').get() as { count: number };
+      syncCount = syncRow.count;
+    } catch {
+      // federation_sync table may not exist
+    }
+
     res.json({
       worker: {
         version,
@@ -272,7 +286,11 @@ export class DataRoutes extends BaseRouteHandler {
         size: dbSize,
         observations: totalObservations.count,
         sessions: totalSessions.count,
-        summaries: totalSummaries.count
+        summaries: totalSummaries.count,
+        projectCount: projectCount.count,
+        avgChars: avgChars.avg_chars || 0,
+        avgDiscoveryTokens: avgTokens.avg_tokens || 0,
+        syncCount
       },
       federation: {
         machines: machineRows,

@@ -35,12 +35,21 @@ const NERD_FONT_TO_FA: Record<string, string> = {
   '\u{F0054}': '<i class="fas fa-arrow-right"></i>',   // next steps (arrow_right)
 };
 
-/** Replace Nerd Font glyphs with FA icons in HTML-escaped content */
+/** Replace Nerd Font glyphs with FA icons in HTML content.
+ *  ansi-to-html with escapeXML converts glyphs to HTML entities like &#xF0A2F;
+ *  so we must match both raw Unicode and the entity form.
+ */
 function replaceNerdFontGlyphs(text: string): string {
   let result = text;
   for (const [glyph, fa] of Object.entries(NERD_FONT_TO_FA)) {
-    // The glyph may be HTML-escaped by ansi-to-html, so check both raw and escaped forms
+    // Replace raw Unicode form
     result = result.replaceAll(glyph, fa);
+    // Replace HTML entity form (&#xHEX;) - what ansi-to-html actually produces
+    const codepoint = glyph.codePointAt(0);
+    if (codepoint) {
+      const entity = `&#x${codepoint.toString(16).toUpperCase()};`;
+      result = result.replaceAll(entity, fa);
+    }
   }
   return result;
 }

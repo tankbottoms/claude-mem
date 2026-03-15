@@ -375,7 +375,7 @@
       display: none;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0 14px;
       height: 36px;
       cursor: pointer;
@@ -429,7 +429,7 @@
       width: 100%;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0 32px 0 12px;
       height: 36px;
       font-size: 13px;
@@ -543,6 +543,128 @@
       padding-top: 1px;
     }
 
+    /* Header badges (repo + version) - match federation/settings button size */
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-family: var(--font-terminal);
+      font-weight: 500;
+      padding: 0 10px;
+      height: 36px;
+      border-radius: 4px;
+      margin-left: 0;
+      vertical-align: middle;
+      line-height: 1;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .repo-badge {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      color: var(--color-text-secondary);
+    }
+    .repo-badge:hover {
+      background: var(--color-bg-card-hover);
+      color: var(--color-text-primary);
+      border-color: var(--color-border-focus);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+    .version-badge {
+      background: rgba(56, 139, 253, 0.1);
+      border: 1px solid rgba(56, 139, 253, 0.3);
+      color: #58a6ff;
+    }
+    .version-badge:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Filter Bar (parque-towers style) */
+    .filter-bar {
+      border-bottom: 1px solid var(--color-border-primary);
+      background: var(--color-bg-primary);
+      padding: 10px 10%;
+      display: flex;
+      justify-content: center;
+    }
+    .filter-bar-inner {
+      max-width: 900px;
+      width: 100%;
+    }
+    .filter-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .filter-row:last-child {
+      margin-bottom: 0;
+    }
+    .filter-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      font-family: var(--font-terminal);
+      white-space: nowrap;
+      min-width: 100px;
+      padding-top: 5px;
+    }
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      flex: 1;
+    }
+    .filter-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 3px;
+      border: 1px solid var(--color-border-primary);
+      background: var(--color-bg-card);
+      color: var(--color-text-secondary);
+      font-family: var(--font-terminal);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      height: 26px;
+    }
+    .filter-pill:hover {
+      border-color: var(--color-border-focus);
+      color: var(--color-text-primary);
+      background: var(--color-bg-card-hover);
+    }
+    .filter-pill.active {
+      background: var(--color-accent-primary);
+      border-color: var(--color-accent-primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .filter-pill.pinned:not(.active) {
+      border-color: var(--color-accent-primary);
+      border-style: dashed;
+    }
+    .expand-pill {
+      color: var(--color-text-secondary);
+      border-style: dashed;
+    }
+    .pin-icon {
+      margin-left: 4px;
+      font-size: 8px;
+      opacity: 0.5;
+    }
+    .pin-icon:hover {
+      opacity: 1;
+    }
+    .machine-pill.active {
+      font-weight: 600;
+    }
+
     .status {
       display: flex;
       align-items: center;
@@ -554,7 +676,7 @@
     .theme-toggle-btn {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0;
       width: 36px;
       height: 36px;
@@ -583,11 +705,17 @@
       box-shadow: 0 2px 8px rgba(9, 105, 218, 0.25);
     }
 
+    /* Project select wrapper with FA icon */
+    .project-select-wrapper {
+      display: flex;
+      align-items: center;
+    }
+
     /* Federation badge button */
     .federation-badge-btn {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0 10px;
       height: 36px;
       cursor: pointer;
@@ -613,18 +741,116 @@
       font-size: 10px;
       font-weight: 700;
       padding: 1px 5px;
-      border-radius: 10px;
+      border-radius: 3px;
       min-width: 16px;
       text-align: center;
       line-height: 1.4;
+    }
+
+    /* Machine source badge (used on all cards) */
+    .machine-source-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--color-type-badge-bg);
+      color: var(--color-type-badge-text);
+      border: 1px solid transparent;
+      font-family: monospace;
+      cursor: pointer;
+      font-weight: 500;
+      height: 22px;
+      line-height: 1;
+    }
+    .machine-source-badge:hover {
+      filter: brightness(1.2);
+    }
+
+    /* Machine badge wrapper with hover popup */
+    .machine-badge-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      margin-left: 4px;
+    }
+    .related-machines-popup {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 50;
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 4px;
+      padding: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      min-width: 140px;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .machine-badge-wrapper:hover .related-machines-popup {
+      display: flex;
+    }
+    .related-machines-label {
+      font-size: 0.65rem;
+      color: var(--color-text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+    .related-machine-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      font-family: monospace;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .related-machine-badge:hover {
+      filter: brightness(1.3);
+    }
+
+    /* Sensitive data masking */
+    .sensitive-data {
+      cursor: pointer;
+      position: relative;
+    }
+    .sensitive-data .sensitive-masked {
+      display: inline;
+      background: var(--color-type-badge-bg);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+      color: var(--color-text-secondary);
+    }
+    .sensitive-data .sensitive-revealed {
+      display: none;
+      font-family: monospace;
+      background: rgba(248, 81, 73, 0.1);
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #f85149;
+    }
+    .sensitive-data:hover .sensitive-masked {
+      display: none;
+    }
+    .sensitive-data:hover .sensitive-revealed {
+      display: inline;
     }
 
     /* Federation Stats Modal */
     .federation-stats-modal {
       background: var(--color-bg-primary);
       border: 1px solid var(--color-border-primary);
-      border-radius: 12px;
-      width: min(700px, 90vw);
+      border-radius: 4px;
+      width: min(900px, 94vw);
       max-height: 85vh;
       display: flex;
       flex-direction: column;
@@ -653,33 +879,150 @@
       flex-direction: column;
       gap: 20px;
     }
-    .fed-stats-overview {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 10px;
+
+    /* Federation overview badges strip */
+    .fed-stats-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
     }
-    .fed-stat-card {
+    .fed-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 3px;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+      height: 24px;
     }
-    .fed-stat-value {
-      font-size: 20px;
+
+    /* Search input in filter bar */
+    .filter-search-input {
+      padding: 4px 10px 4px 28px;
+      border-radius: 3px;
+      border: 1px solid var(--color-border-primary);
+      background: var(--color-bg-card);
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      font-size: 0.75rem;
+      height: 26px;
+      width: 100%;
+      outline: none;
+      transition: all 0.15s;
+    }
+    .filter-search-input:focus {
+      border-color: var(--color-border-focus);
+      box-shadow: var(--shadow-focus);
+    }
+    .filter-search-input::placeholder {
+      color: var(--color-text-muted);
+    }
+    .filter-search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    .filter-search-wrapper .search-icon {
+      position: absolute;
+      left: 8px;
+      color: var(--color-text-muted);
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    /* Machine cards grid */
+    .fed-machines-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .fed-machine-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      border-radius: 4px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      text-decoration: none;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .fed-machine-card:hover {
+      background: var(--color-bg-card-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .fed-machine-card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fed-machine-name-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      font-family: monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      height: 24px;
+    }
+    .fed-local-tag {
+      font-size: 0.6rem;
+      color: var(--color-text-secondary);
+    }
+    .fed-machine-card-stats {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+    }
+    .fed-machine-count {
+      font-size: 1.1rem;
       font-weight: 700;
       color: var(--color-text-primary);
       font-family: var(--font-terminal);
-      letter-spacing: -0.03em;
     }
-    .fed-stat-label {
-      font-size: 10px;
-      font-weight: 500;
+    .fed-machine-pct {
+      font-size: 0.7rem;
       color: var(--color-text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-top: 2px;
+      font-family: monospace;
     }
+    .fed-machine-card-meta {
+      font-size: 0.7rem;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+    .fed-machine-card-header {
+      justify-content: center;
+    }
+
+    /* Project-machine clickable badges */
+    .fed-project-machine-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      font-family: monospace;
+      font-size: 0.7rem;
+      font-weight: 500;
+      cursor: pointer;
+      height: 22px;
+      transition: filter 0.15s;
+    }
+    .fed-project-machine-badge:hover {
+      filter: brightness(1.3);
+    }
+
     .fed-section {
       display: flex;
       flex-direction: column;
@@ -733,7 +1076,7 @@
     .community-btn {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0 14px;
       height: 36px;
       cursor: pointer;
@@ -766,7 +1109,7 @@
     .github-stars-btn {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0 14px;
       height: 36px;
       cursor: pointer;
@@ -826,7 +1169,7 @@
       color: var(--color-text-secondary);
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       text-decoration: none;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -887,7 +1230,7 @@
     .status select {
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 0 32px 0 12px;
       height: 36px;
       font-size: 13px;
@@ -955,13 +1298,14 @@
       flex: 1;
       overflow-y: scroll;
       height: 100vh;
-      padding: 24px 18px;
+      padding: 24px 10%;
       display: flex;
       justify-content: center;
     }
 
     .feed-content {
-      max-width: 650px;
+      max-width: 900px;
+      width: 100%;
     }
 
     .card {
@@ -969,7 +1313,7 @@
       padding: 24px;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border-primary);
-      border-radius: 8px;
+      border-radius: 4px;
       transition: all 0.15s ease;
       animation: slideIn 0.3s ease-out;
       line-height: 1.7;
@@ -1831,7 +2175,7 @@
     .context-settings-modal {
       background: var(--color-bg-primary);
       border: 1px solid var(--color-border-primary);
-      border-radius: 12px;
+      border-radius: 4px;
       width: 100%;
       max-width: 1200px;
       height: 90vh;
@@ -1885,7 +2229,7 @@
       border: 1px solid var(--color-border-primary);
       color: var(--color-text-primary);
       padding: 6px 12px;
-      border-radius: 6px;
+      border-radius: 4px;
       font-size: 12px;
       font-family: inherit;
       cursor: pointer;
@@ -1908,7 +2252,7 @@
       border: 1px solid var(--color-border-primary);
       width: 32px;
       height: 32px;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -1934,7 +2278,7 @@
       border: 1px solid var(--color-border-primary);
       width: 32px;
       height: 32px;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -2446,7 +2790,7 @@
       width: 100%;
       background: var(--color-bg-input);
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 8px 12px;
       height: 36px;
       font-size: 13px;
@@ -2589,7 +2933,7 @@
       padding: 6px 12px;
       min-height: 30px;
       border: 1px solid var(--color-border-primary);
-      border-radius: 6px;
+      border-radius: 4px;
       font-size: 12px;
       font-weight: 500;
       color: var(--color-text-secondary);

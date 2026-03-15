@@ -100,6 +100,10 @@ export interface DatabaseStats {
   observations?: number;
   sessions?: number;
   summaries?: number;
+  projectCount?: number;
+  avgChars?: number;
+  avgDiscoveryTokens?: number;
+  syncCount?: number;
 }
 
 export interface MachineStats {

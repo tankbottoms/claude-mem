@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Observation } from '../types';
 import { formatDate } from '../utils/formatters';
+import { getMachineColor, TYPE_ICONS } from '../utils/machines';
+import { SensitiveText } from './SensitiveText';
 
 interface ObservationCardProps {
   observation: Observation;
@@ -11,24 +13,13 @@ interface ObservationCardProps {
 
 // Helper to strip project root from file paths
 function stripProjectRoot(filePath: string): string {
-  // Try to extract relative path by finding common project markers
   const markers = ['/Scripts/', '/src/', '/plugin/', '/docs/'];
-
   for (const marker of markers) {
     const index = filePath.indexOf(marker);
-    if (index !== -1) {
-      // Keep the marker and everything after it
-      return filePath.substring(index + 1);
-    }
+    if (index !== -1) return filePath.substring(index + 1);
   }
-
-  // Fallback: if path contains project name, strip everything before it
   const projectIndex = filePath.indexOf('claude-mem/');
-  if (projectIndex !== -1) {
-    return filePath.substring(projectIndex + 'claude-mem/'.length);
-  }
-
-  // If no markers found, return basename or original path
+  if (projectIndex !== -1) return filePath.substring(projectIndex + 'claude-mem/'.length);
   const parts = filePath.split('/');
   return parts.length > 3 ? parts.slice(-3).join('/') : filePath;
 }
@@ -38,63 +29,70 @@ export function ObservationCard({ observation, onMachineFilter, localHostname, p
   const [showNarrative, setShowNarrative] = useState(false);
   const date = formatDate(observation.created_at_epoch);
 
-  // Parse JSON fields
   const facts = observation.facts ? JSON.parse(observation.facts) : [];
   const concepts = observation.concepts ? JSON.parse(observation.concepts) : [];
   const filesRead = observation.files_read ? JSON.parse(observation.files_read).map(stripProjectRoot) : [];
   const filesModified = observation.files_modified ? JSON.parse(observation.files_modified).map(stripProjectRoot) : [];
-
-  // Show facts toggle if there are facts, concepts, or files
   const hasFactsContent = facts.length > 0 || concepts.length > 0 || filesRead.length > 0 || filesModified.length > 0;
 
+  const sourceMachine = observation.source_machine || localHostname || '';
+  const machineColor = sourceMachine ? getMachineColor(sourceMachine) : null;
+  const typeIcon = TYPE_ICONS[observation.type];
+
+  // Other machines with the same project (for hover popup)
+  const otherMachines = projectMachines?.[observation.project]
+    ?.filter(pm => pm.machine !== sourceMachine) || [];
+
   return (
-    <div className="card">
+    <div
+      className="card"
+      style={machineColor ? {
+        borderLeft: `3px solid ${machineColor.border}`,
+      } : undefined}
+    >
       {/* Header with toggle buttons in top right */}
       <div className="card-header">
         <div className="card-header-left">
           <span className={`card-type type-${observation.type}`}>
+            {typeIcon && (
+              <i className={typeIcon.icon} style={{ color: typeIcon.color, marginRight: '4px', fontSize: '0.7rem' }}></i>
+            )}
             {observation.type}
           </span>
           <span className="card-project">{observation.project}</span>
-          <span
-            onClick={() => onMachineFilter?.(observation.source_machine || '__local__')}
-            style={{
-              fontSize: '0.7rem',
-              padding: '2px 6px',
-              borderRadius: '3px',
-              background: 'var(--color-type-badge-bg)',
-              color: 'var(--color-type-badge-text)',
-              marginLeft: '4px',
-              fontFamily: 'monospace',
-              cursor: onMachineFilter ? 'pointer' : 'default',
-            }}
-            title={`Filter by ${observation.source_machine || localHostname || 'this machine'}`}
-          >
-            {observation.source_machine || localHostname || '...'}
-          </span>
-          {/* Show other machines that also have this project */}
-          {projectMachines?.[observation.project]
-            ?.filter(pm => pm.machine !== (observation.source_machine || localHostname))
-            .map(pm => (
-              <span
-                key={pm.machine}
-                onClick={() => onMachineFilter?.(pm.machine)}
-                style={{
-                  fontSize: '0.65rem',
-                  padding: '1px 4px',
-                  borderRadius: '3px',
-                  background: 'transparent',
-                  border: '1px solid var(--color-border, #30363d)',
-                  color: 'var(--color-secondary, #8b949e)',
-                  fontFamily: 'monospace',
-                  cursor: onMachineFilter ? 'pointer' : 'default',
-                  opacity: 0.7,
-                }}
-                title={`Also on ${pm.machine} (${pm.count} observations)`}
-              >
-                {pm.machine}
-              </span>
-            ))}
+          <div className="machine-badge-wrapper">
+            <span
+              onClick={() => onMachineFilter?.(observation.source_machine || '__local__')}
+              className="machine-source-badge"
+              style={machineColor ? {
+                background: machineColor.bg,
+                color: machineColor.text,
+                borderColor: machineColor.border,
+              } : undefined}
+              title={`Filter by ${sourceMachine || 'this machine'}`}
+            >
+              {sourceMachine || '...'}
+            </span>
+            {otherMachines.length > 0 && (
+              <div className="related-machines-popup">
+                <div className="related-machines-label">Also on:</div>
+                {otherMachines.map(pm => {
+                  const c = getMachineColor(pm.machine);
+                  return (
+                    <span
+                      key={pm.machine}
+                      className="related-machine-badge"
+                      onClick={(e) => { e.stopPropagation(); onMachineFilter?.(pm.machine); }}
+                      style={{ background: c.bg, color: c.text, borderColor: c.border }}
+                      title={`${pm.machine}: ${pm.count} observations`}
+                    >
+                      {pm.machine} <span style={{ opacity: 0.6 }}>{pm.count}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
         <div className="view-mode-toggles">
           {hasFactsContent && (
@@ -102,7 +100,7 @@ export function ObservationCard({ observation, onMachineFilter, localHostname, p
               className={`view-mode-toggle ${showFacts ? 'active' : ''}`}
               onClick={() => {
                 setShowFacts(!showFacts);
-                if (!showFacts) setShowNarrative(false); // Turn off narrative when turning on facts
+                if (!showFacts) setShowNarrative(false);
               }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -117,7 +115,7 @@ export function ObservationCard({ observation, onMachineFilter, localHostname, p
               className={`view-mode-toggle ${showNarrative ? 'active' : ''}`}
               onClick={() => {
                 setShowNarrative(!showNarrative);
-                if (!showNarrative) setShowFacts(false); // Turn off facts when turning on narrative
+                if (!showNarrative) setShowFacts(false);
               }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -133,30 +131,37 @@ export function ObservationCard({ observation, onMachineFilter, localHostname, p
       </div>
 
       {/* Title */}
-      <div className="card-title">{observation.title || 'Untitled'}</div>
+      <div className="card-title">
+        <SensitiveText text={observation.title || 'Untitled'} />
+      </div>
 
       {/* Content based on toggle state */}
       <div className="view-mode-content">
         {!showFacts && !showNarrative && observation.subtitle && (
-          <div className="card-subtitle">{observation.subtitle}</div>
+          <div className="card-subtitle"><SensitiveText text={observation.subtitle} /></div>
         )}
         {showFacts && facts.length > 0 && (
           <ul className="facts-list">
             {facts.map((fact: string, i: number) => (
-              <li key={i}>{fact}</li>
+              <li key={i}><SensitiveText text={fact} /></li>
             ))}
           </ul>
         )}
         {showNarrative && observation.narrative && (
           <div className="narrative">
-            {observation.narrative}
+            <SensitiveText text={observation.narrative} />
           </div>
         )}
       </div>
 
-      {/* Metadata footer - id, date, and conditionally concepts/files when facts toggle is on */}
+      {/* Metadata footer */}
       <div className="card-meta">
-        <span className="meta-date">#{observation.id} • {date}</span>
+        <span className="meta-date">#{observation.id} • {date} • {(
+          (observation.title || '').length +
+          (observation.subtitle || '').length +
+          (observation.narrative || '').length +
+          (observation.facts || '').length
+        ).toLocaleString()} chars</span>
         {showFacts && (concepts.length > 0 || filesRead.length > 0 || filesModified.length > 0) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
             {concepts.map((concept: string, i: number) => (
