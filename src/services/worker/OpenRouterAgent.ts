@@ -291,9 +291,12 @@ export class OpenRouterAgent {
 
   /**
    * Truncate conversation history to prevent runaway context costs
-   * Keeps most recent messages within token budget
+   * Keeps most recent messages within token budget.
+   * Always returns at least 1 message to prevent empty API requests.
    */
   private truncateHistory(history: ConversationMessage[]): ConversationMessage[] {
+    if (history.length === 0) return history;
+
     const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
 
     const MAX_CONTEXT_MESSAGES = parseInt(settings.CLAUDE_MEM_OPENROUTER_MAX_CONTEXT_MESSAGES) || DEFAULT_MAX_CONTEXT_MESSAGES;
@@ -316,7 +319,10 @@ export class OpenRouterAgent {
       const msg = history[i];
       const msgTokens = this.estimateTokens(msg.content);
 
-      if (truncated.length >= MAX_CONTEXT_MESSAGES || tokenCount + msgTokens > MAX_ESTIMATED_TOKENS) {
+      // Always keep at least the most recent message — an oversized request is
+      // recoverable (the API will reject or truncate), but an empty messages
+      // array causes a 400 crash loop that backs up the entire queue.
+      if (truncated.length > 0 && (truncated.length >= MAX_CONTEXT_MESSAGES || tokenCount + msgTokens > MAX_ESTIMATED_TOKENS)) {
         logger.warn('SDK', 'Context window truncated to prevent runaway costs', {
           originalMessages: history.length,
           keptMessages: truncated.length,
@@ -359,6 +365,11 @@ export class OpenRouterAgent {
     // Truncate history to prevent runaway costs
     const truncatedHistory = this.truncateHistory(history);
     const messages = this.conversationToOpenAIMessages(truncatedHistory);
+
+    if (messages.length === 0) {
+      throw new Error('No messages to send after truncation — cannot make empty API request');
+    }
+
     const totalChars = truncatedHistory.reduce((sum, m) => sum + m.content.length, 0);
     const estimatedTokens = this.estimateTokens(truncatedHistory.map(m => m.content).join(''));
 
