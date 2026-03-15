@@ -51,6 +51,19 @@ export class ChromaMcpManager {
   }
 
   /**
+   * Check if ChromaDB MCP connection is likely available.
+   * Returns true if connected OR if never attempted (lazy-connect will try on first use).
+   * Returns false only if in backoff from a recent failure.
+   */
+  isAvailable(): boolean {
+    if (this.lastConnectionFailureTimestamp > 0) {
+      const elapsed = Date.now() - this.lastConnectionFailureTimestamp;
+      if (elapsed < RECONNECT_BACKOFF_MS) return false;
+    }
+    return true;
+  }
+
+  /**
    * Ensure the MCP client is connected to chroma-mcp.
    * Uses a connection lock to prevent concurrent connection attempts.
    * If the subprocess has died since the last use, reconnects transparently.
