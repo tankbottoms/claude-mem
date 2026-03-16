@@ -42,3 +42,7 @@ https*/
 
 # Playwright trace/log artifacts
 .playwright-cli/
+
+# Project-local development instructions (not tracked)
+CLAUDE.md
+AGENTS.md
