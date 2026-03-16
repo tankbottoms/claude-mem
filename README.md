@@ -93,6 +93,8 @@ This fork adds everything needed to run claude-mem across multiple machines as a
 - **42 configuration variables** -- SettingsDefaultsManager with env vars, settings file, and launchd plist support.
 - **Interactive setup wizard** -- `scripts/federation-setup.sh` walks through federation config, peer testing, cron installation, and HTTPS setup.
 
+<div align="center">
+
 | Feature | Upstream | This Fork |
 |---------|----------|-----------|
 | Core memory system | ✓ | ✓ |
@@ -107,6 +109,8 @@ This fork adds everything needed to run claude-mem across multiple machines as a
 | LaunchAgent management (macOS) | -- | ✓ |
 | Multi-machine deployment | -- | ✓ |
 | SettingsDefaultsManager (42 config vars) | -- | ✓ |
+
+</div>
 
 ## Quick Start
 
@@ -132,6 +136,8 @@ After installation, Claude Code automatically loads the plugin via lifecycle hoo
 
 Claude-Mem integrates with Claude Code through 5 lifecycle hooks plus a setup phase:
 
+<div align="center">
+
 | Hook | Trigger | Purpose |
 |------|---------|---------|
 | **Setup** | Plugin load | Run `setup.sh` for initial configuration |
@@ -140,6 +146,8 @@ Claude-Mem integrates with Claude Code through 5 lifecycle hooks plus a setup ph
 | **PostToolUse** | Every tool call | Record observations (code reads, edits, searches, decisions) |
 | **Stop** | Response complete | Generate session summary with AI |
 | **SessionEnd** | Session close | Finalize session, cleanup |
+
+</div>
 
 ### Core Components
 
@@ -151,18 +159,14 @@ Claude-Mem integrates with Claude Code through 5 lifecycle hooks plus a setup ph
 
 ### Data Flow
 
-```
-Claude Code  -->  Lifecycle Hooks  -->  Worker Service (:37777)
-                                            |
-                                     +------+------+
-                                     |             |
-                                  SQLite        ChromaDB
-                                  (FTS5)       (vectors)
-                                     |             |
-                                     +------+------+
-                                            |
-                                     Federation Sync
-                                      (peer-to-peer)
+```mermaid
+flowchart TD
+    CC["Claude Code"] --> LH["Lifecycle Hooks"]
+    LH --> WS["Worker Service (:37777)"]
+    WS --> SQ[("SQLite (FTS5)")]
+    WS --> CH[("ChromaDB (vectors)")]
+    SQ --> FS["Federation Sync (peer-to-peer)"]
+    CH --> FS
 ```
 
 ## HTTPS/TLS with Tailscale
@@ -221,11 +225,15 @@ CLAUDE_MEM_CHROMA_DATABASE=default_database
 
 The fork supports three AI providers for observation summarization and context generation:
 
+<div align="center">
+
 | Provider | Setting | Default Model | Auth |
 |----------|---------|---------------|------|
 | **Claude** | `CLAUDE_MEM_PROVIDER=claude` | `claude-sonnet-4-5` | CLI subscription (`cli`) or API key (`api`) |
 | **Gemini** | `CLAUDE_MEM_PROVIDER=gemini` | `gemini-2.5-flash-lite` | `CLAUDE_MEM_GEMINI_API_KEY` |
 | **OpenRouter** | `CLAUDE_MEM_PROVIDER=openrouter` | `xiaomi/mimo-v2-flash:free` | `CLAUDE_MEM_OPENROUTER_API_KEY` |
+
+</div>
 
 OpenRouter supports LiteLLM proxy via `CLAUDE_MEM_OPENROUTER_API_BASE` for self-hosted model routing.
 
@@ -282,11 +290,15 @@ The sync script (`scripts/federation-sync.sh`) runs via cron every 5 minutes:
 
 For federation setups, each machine runs the worker service and syncs observations with peers. A typical deployment might look like:
 
+<div align="center">
+
 | Machine | Role | HTTP | HTTPS | Chroma |
 |---------|------|------|-------|--------|
 | dev-machine | Dev, source of truth | :37777 | :37778 | :8000 |
 | gpu-node-1 | Production (GPU) | :37777 | -- | :8000 |
 | laptop-1 | Laptop | :37777 | -- | :8000 |
+
+</div>
 
 Configure peers in `~/.claude-mem/federation.json` (see [example config](docs/federation.example.json)). One machine should be designated as the source of truth for git pushes; all others pull from `origin main`.
 
@@ -294,11 +306,15 @@ Configure peers in `~/.claude-mem/federation.json` (see [example config](docs/fe
 
 Three LaunchAgent plists manage the worker lifecycle:
 
+<div align="center">
+
 | Plist | Label | Purpose | Interval |
 |-------|-------|---------|----------|
 | `com.claude-mem.worker.plist` | Worker | Runs `worker-service.cjs` via Bun, `KeepAlive: true` | Always |
 | `com.claude-mem.cleanup.plist` | Cleanup | Runs `claude-mem-cleanup.sh` | 120s |
 | `com.claude-mem.network-watchdog.plist` | Watchdog | Runs `network-watchdog.sh` | 300s |
+
+</div>
 
 The worker plist sets HTTPS env vars via `EnvironmentVariables` dict:
 
@@ -336,6 +352,8 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 
 ### Core Settings
 
+<div align="center">
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CLAUDE_MEM_MODEL` | `claude-sonnet-4-5` | AI model for summarization |
@@ -347,7 +365,11 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 | `CLAUDE_MEM_LOG_LEVEL` | *(default)* | Log verbosity |
 | `CLAUDE_MEM_MODE` | *(default)* | Operating mode |
 
+</div>
+
 ### AI Provider Settings
+
+<div align="center">
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -362,7 +384,11 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 | `CLAUDE_MEM_OPENROUTER_MAX_CONTEXT_MESSAGES` | `20` | Max context messages |
 | `CLAUDE_MEM_OPENROUTER_MAX_TOKENS` | *(default)* | Max output tokens |
 
+</div>
+
 ### Display & Context Settings
+
+<div align="center">
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -377,7 +403,11 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 | `CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE` | `false` | Show last user message |
 | `CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT` | `true` | Show terminal output |
 
+</div>
+
 ### HTTPS/TLS Settings
+
+<div align="center">
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -385,7 +415,11 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 | `CLAUDE_MEM_HTTPS_PORT` | `37778` | HTTPS listen port |
 | `CLAUDE_MEM_HTTPS_CERT_DIR` | *(empty)* | Cert directory (empty = auto-detect from Tailscale) |
 
+</div>
+
 ### ChromaDB Settings
+
+<div align="center">
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -398,7 +432,11 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 | `CLAUDE_MEM_CHROMA_TENANT` | `default_tenant` | Chroma tenant |
 | `CLAUDE_MEM_CHROMA_DATABASE` | `default_database` | Chroma database |
 
+</div>
+
 ### Process & Feature Settings
+
+<div align="center">
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -406,6 +444,8 @@ All settings are managed through `SettingsDefaultsManager` (`src/shared/Settings
 | `CLAUDE_MEM_EXCLUDED_PROJECTS` | *(empty)* | Comma-separated glob patterns for excluded projects |
 | `CLAUDE_MEM_FOLDER_MD_EXCLUDE` | `[]` | JSON array of folder paths to exclude from CLAUDE.md generation |
 | `CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED` | `false` | Enable per-folder CLAUDE.md generation |
+
+</div>
 
 ## MCP Search Tools
 
