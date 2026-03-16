@@ -1,10 +1,24 @@
-// Machine config is optional -- the viewer works without it.
-// For federation setups, these can be populated from your local config.
-const TAILSCALE_DOMAIN = '';
+// Machine config for federation setups.
+// Populated with tailnet domain and machine metadata for link generation.
+const TAILSCALE_DOMAIN = 'example-tailnet.ts.net';
 
-const MACHINE_IPS: Record<string, string> = {};
+const MACHINE_IPS: Record<string, string> = {
+  'studio': '192.168.1.217',
+  'spark-1': '192.168.1.76',
+  'spark-2': '192.168.1.63',
+  'mbp2022': '192.168.1.13',
+  'mbp2020': '192.168.1.205',
+  'mbp2019': '192.168.1.145',
+};
 
-const MACHINE_COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {};
+const MACHINE_COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {
+  'studio':  { bg: 'rgba(96, 165, 250, 0.15)',  text: '#60a5fa', border: 'rgba(96, 165, 250, 0.3)' },   // blue
+  'spark-1':    { bg: 'rgba(251, 146, 60, 0.15)',   text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' },   // orange
+  'spark-2':    { bg: 'rgba(74, 222, 128, 0.15)',    text: '#4ade80', border: 'rgba(74, 222, 128, 0.3)' },   // green
+  'mbp2022': { bg: 'rgba(192, 132, 252, 0.15)',  text: '#c084fc', border: 'rgba(192, 132, 252, 0.3)' },  // purple
+  'mbp2020': { bg: 'rgba(251, 191, 36, 0.15)',   text: '#fbbf24', border: 'rgba(251, 191, 36, 0.3)' },   // amber
+  'mbp2019': { bg: 'rgba(248, 113, 113, 0.15)',  text: '#f87171', border: 'rgba(248, 113, 113, 0.3)' },  // red
+};
 
 /** Fallback palette for unknown machines */
 const FALLBACK_COLORS = [
@@ -30,12 +44,18 @@ export function getMachineColor(machine: string) {
 
 export function getMagicDnsUrl(machine: string): string {
   const hostname = machine.replace(/\.local$/, '');
-  return `http://${hostname}.${TAILSCALE_DOMAIN}:37777`;
+  if (TAILSCALE_DOMAIN) {
+    return `https://${hostname}.${TAILSCALE_DOMAIN}:37778`;
+  }
+  return `http://${hostname}:37777`;
 }
 
 export function getMagicDnsHostname(machine: string): string {
   const hostname = machine.replace(/\.local$/, '');
-  return `${hostname}.${TAILSCALE_DOMAIN}`;
+  if (TAILSCALE_DOMAIN) {
+    return `${hostname}.${TAILSCALE_DOMAIN}`;
+  }
+  return hostname;
 }
 
 export function getMachineIp(machine: string): string | undefined {
