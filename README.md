@@ -68,7 +68,30 @@
 
 ---
 
-## Fork vs Upstream
+## Screenshots
+
+<p align="center">
+  <img src="docs/public/screenshots/dashboard.png" alt="Dashboard" width="700">
+  <br>
+  <em>Observation feed with session summaries, search, and machine filtering</em>
+</p>
+
+<p align="center">
+  <img src="docs/public/screenshots/federation.png" alt="Federation" width="500">
+  <br>
+  <em>Federation modal showing multi-machine sync status and per-project distribution</em>
+</p>
+
+## What's Different
+
+This fork adds everything needed to run claude-mem across multiple machines as a federated memory network:
+
+- **Machine federation** -- Peer-to-peer observation sync via cron. Each machine pulls from configured peers with URL fallback, batch processing, and deduplication. No central server.
+- **HTTPS/TLS** -- Native Tailscale cert integration for secure cross-machine communication. Auto-discovers MagicDNS hostname and cert files.
+- **ChromaDB vector search** -- Hybrid semantic + FTS5 keyword search. Observations auto-sync to ChromaDB for significantly better recall.
+- **Multi-provider AI** -- Switch between Claude, Gemini, and OpenRouter for observation summarization. Supports LiteLLM proxy for self-hosted routing.
+- **42 configuration variables** -- SettingsDefaultsManager with env vars, settings file, and launchd plist support.
+- **Interactive setup wizard** -- `scripts/federation-setup.sh` walks through federation config, peer testing, cron installation, and HTTPS setup.
 
 | Feature | Upstream | This Fork |
 |---------|----------|-----------|
@@ -80,6 +103,7 @@
 | ChromaDB vector search | -- | ✓ |
 | Multi-provider AI (Claude/Gemini/OpenRouter) | -- | ✓ |
 | Machine federation & sync | -- | ✓ |
+| Interactive setup wizard | -- | ✓ |
 | LaunchAgent management (macOS) | -- | ✓ |
 | Multi-machine deployment | -- | ✓ |
 | SettingsDefaultsManager (42 config vars) | -- | ✓ |
@@ -208,6 +232,12 @@ OpenRouter supports LiteLLM proxy via `CLAUDE_MEM_OPENROUTER_API_BASE` for self-
 ## Machine Federation
 
 Federation enables peer-to-peer observation sync across machines. Each machine's worker service exposes a `/api/federation/pull` endpoint that peers can query.
+
+For a complete walkthrough, see the [Federation Setup Guide](docs/federation-setup.md) or run the interactive wizard:
+
+```bash
+./scripts/federation-setup.sh
+```
 
 ### federation.json
 
@@ -386,6 +416,12 @@ The worker exposes search via MCP protocol with a 3-layer progressive disclosure
 3. **`get_observations([IDs])`** -- Fetches full details only for filtered IDs
 
 Additional tools: `smart_search` (tree-sitter AST), `smart_unfold` (expand symbols), `smart_outline` (file structure).
+
+## Documentation
+
+- [Federation Setup Guide](docs/federation-setup.md) -- Step-by-step federation setup, HTTPS/TLS, troubleshooting
+- [Database Schema Reference](docs/schema.md) -- ER diagram, all tables, columns, indexes, and migration history
+- [Example federation.json](docs/federation.example.json) -- Template federation config
 
 ## System Requirements
 
