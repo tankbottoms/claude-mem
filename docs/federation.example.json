@@ -1,0 +1,17 @@
+{
+  "peers": [
+    {
+      "name": "gpu-node-1",
+      "urls": ["http://192.168.1.100:37777"],
+      "enabled": true
+    },
+    {
+      "name": "dev-machine",
+      "urls": [
+        "http://192.168.1.200:37777",
+        "https://dev-machine.your-tailnet.ts.net:37778"
+      ],
+      "enabled": true
+    }
+  ]
+}

@@ -1,25 +1,10 @@
-const TAILSCALE_DOMAIN = 'example-tailnet.ts.net';
+// Machine config is optional -- the viewer works without it.
+// For federation setups, these can be populated from your local config.
+const TAILSCALE_DOMAIN = '';
 
-const MACHINE_IPS: Record<string, string> = {
-  'spark-1': '192.168.1.76',
-  'spark-2': '192.168.1.63',
-  'studio': '10.0.0.1',
-  'mbp2022': '10.0.0.2',
-  'mbp2020': '10.0.0.3',
-  'mbp2019': '10.0.0.4',
-  'mbp2019.local': '10.0.0.4',
-};
+const MACHINE_IPS: Record<string, string> = {};
 
-/** Explicit high-contrast color assignments for known machines */
-const MACHINE_COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {
-  'spark-1':          { bg: 'rgba(56, 139, 253, 0.15)', text: '#58a6ff', border: 'rgba(56, 139, 253, 0.3)' },    // blue
-  'spark-2':          { bg: 'rgba(63, 185, 80, 0.15)', text: '#3fb950', border: 'rgba(63, 185, 80, 0.3)' },       // green
-  'studio':        { bg: 'rgba(255, 166, 87, 0.15)', text: '#ffa657', border: 'rgba(255, 166, 87, 0.3)' },     // orange
-  'mbp2022':       { bg: 'rgba(121, 192, 255, 0.15)', text: '#79c0ff', border: 'rgba(121, 192, 255, 0.3)' },   // cyan
-  'mbp2020':       { bg: 'rgba(248, 81, 73, 0.15)', text: '#f85149', border: 'rgba(248, 81, 73, 0.3)' },       // red
-  'mbp2019':       { bg: 'rgba(210, 153, 34, 0.15)', text: '#d29922', border: 'rgba(210, 153, 34, 0.3)' },     // amber
-  'mbp2019.local': { bg: 'rgba(210, 153, 34, 0.15)', text: '#d29922', border: 'rgba(210, 153, 34, 0.3)' },     // amber
-};
+const MACHINE_COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {};
 
 /** Fallback palette for unknown machines */
 const FALLBACK_COLORS = [

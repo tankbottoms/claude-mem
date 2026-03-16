@@ -84,12 +84,6 @@
 | Multi-machine deployment | -- | ✓ |
 | SettingsDefaultsManager (42 config vars) | -- | ✓ |
 
-## Screenshots
-
-![Federation Dashboard](docs/screenshots/federation-screenshot.png)
-
-![Claude-Mem Dashboard](docs/screenshots/claude-mem-dashboard-screenshot.png)
-
 ## Quick Start
 
 ```bash
@@ -223,15 +217,15 @@ The federation config lives at `~/.claude-mem/federation.json`:
 {
   "peers": [
     {
-      "name": "spark-1",
-      "urls": ["http://192.168.1.76:37777"],
+      "name": "gpu-node-1",
+      "urls": ["http://192.168.1.100:37777"],
       "enabled": true
     },
     {
-      "name": "studio",
+      "name": "dev-machine",
       "urls": [
-        "http://192.168.1.217:37777",
-        "https://studio.example-tailnet.ts.net:37778"
+        "http://192.168.1.200:37777",
+        "https://dev-machine.your-tailnet.ts.net:37778"
       ],
       "enabled": true
     }
@@ -254,18 +248,17 @@ The sync script (`scripts/federation-sync.sh`) runs via cron every 5 minutes:
 - Safety cap: 50 rounds (25,000 observations max per peer per run)
 - Reads config from `~/.claude-mem/federation.json`
 
-## Machine Deployment
+## Multi-Machine Deployment
 
-| Machine | Role | LAN IP | HTTP | HTTPS | Chroma |
-|---------|------|--------|------|-------|--------|
-| studio | Dev, source of truth | 192.168.1.217 | :37777 | :37778 | :8000 |
-| spark-1 | Production (GPU) | 192.168.1.76 | :37777 | -- | :8100 |
-| spark-2 | Production (GPU) | 192.168.1.63 | :37777 | -- | :8000 |
-| mbp2022 | Laptop | 192.168.1.13 | :37777 | -- | :8000 |
-| mbp2020 | Laptop | 192.168.1.205 | :37777 | -- | :8000 |
-| mbp2019 | Laptop | 192.168.1.145 | :37777 | -- | :8000 |
+For federation setups, each machine runs the worker service and syncs observations with peers. A typical deployment might look like:
 
-All machines run version 10.5.6. studio is the only machine that pushes to git; all others pull from `origin main`.
+| Machine | Role | HTTP | HTTPS | Chroma |
+|---------|------|------|-------|--------|
+| dev-machine | Dev, source of truth | :37777 | :37778 | :8000 |
+| gpu-node-1 | Production (GPU) | :37777 | -- | :8000 |
+| laptop-1 | Laptop | :37777 | -- | :8000 |
+
+Configure peers in `~/.claude-mem/federation.json` (see [example config](docs/federation.example.json)). One machine should be designated as the source of truth for git pushes; all others pull from `origin main`.
 
 ## LaunchAgent Management (macOS)
 
