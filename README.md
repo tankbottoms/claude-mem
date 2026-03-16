@@ -1,20 +1,10 @@
-<p align="center">
-  Official $CMEM Links: 
-  <a href="https://bags.fm/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS">Bags.fm</a> •
-  <a href="https://jup.ag/tokens/2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS">Jupiter</a> •
-  <a href="https://photon-sol.tinyastro.io/en/lp/6MzFAkWnac6GSK1EdFX93dZeukGfzrFq4UHWarhGSQyd">Photon</a> •
-  <a href="https://dexscreener.com/solana/6mzfakwnac6gsk1edfx93dzeukgfzrfq4uhwarhgsqyd">DEXScreener</a>
-</p>
-
-<p align="center">Official CA: 2TsmuYUrsctE57VLckZBYEEzdokUF8j8e1GavekWBAGS (on Solana)</p>
-
 <h1 align="center">
   <br>
-  <a href="https://github.com/thedotmack/claude-mem">
+  <a href="https://github.com/tankbottoms/claude-mem">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/claude-mem-logo-for-dark-mode.webp">
-      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/claude-mem-logo-for-light-mode.webp">
-      <img src="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/claude-mem-logo-for-light-mode.webp" alt="Claude-Mem" width="400">
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tankbottoms/claude-mem/main/docs/public/claude-mem-logo-for-dark-mode.webp">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/tankbottoms/claude-mem/main/docs/public/claude-mem-logo-for-light-mode.webp">
+      <img src="https://raw.githubusercontent.com/tankbottoms/claude-mem/main/docs/public/claude-mem-logo-for-light-mode.webp" alt="Claude-Mem" width="400">
     </picture>
   </a>
   <br>
@@ -62,7 +52,7 @@
     <img src="https://img.shields.io/badge/License-AGPL%203.0-blue.svg" alt="License">
   </a>
   <a href="package.json">
-    <img src="https://img.shields.io/badge/version-6.5.0-green.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-10.5.6-green.svg" alt="Version">
   </a>
   <a href="package.json">
     <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg" alt="Node">
@@ -72,261 +62,379 @@
   </a>
 </p>
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/15496" target="_blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/trendshift-badge-dark.svg">
-      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/trendshift-badge.svg">
-      <img src="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/trendshift-badge.svg" alt="thedotmack/claude-mem | Trendshift" width="250" height="55"/>
-    </picture>
-  </a>
-</p>
+---
 
-<br>
-
-<p align="center">
-  <a href="https://github.com/thedotmack/claude-mem">
-    <picture>
-      <img src="https://raw.githubusercontent.com/thedotmack/claude-mem/main/docs/public/cm-preview.gif" alt="Claude-Mem Preview" width="800">
-    </picture>
-  </a>
-</p>
-
-<p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#how-it-works">How It Works</a> •
-  <a href="#mcp-search-tools">Search Tools</a> •
-  <a href="#documentation">Documentation</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#troubleshooting">Troubleshooting</a> •
-  <a href="#license">License</a>
-</p>
-
-<p align="center">
-  Claude-Mem seamlessly preserves context across sessions by automatically capturing tool usage observations, generating semantic summaries, and making them available to future sessions. This enables Claude to maintain continuity of knowledge about projects even after sessions end or reconnect.
-</p>
+> **Fork notice** -- This is an enhanced fork of [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem) with HTTPS/TLS, ChromaDB vector search, multi-provider AI, machine federation, and multi-machine deployment support. Upstream compatibility is maintained; all original features work as documented.
 
 ---
+
+## Fork vs Upstream
+
+| Feature | Upstream | This Fork |
+|---------|----------|-----------|
+| Core memory system | ✓ | ✓ |
+| SQLite + FTS5 search | ✓ | ✓ |
+| MCP search tools | ✓ | ✓ |
+| Web viewer UI | ✓ | ✓ |
+| HTTPS/TLS (Tailscale certs) | -- | ✓ |
+| ChromaDB vector search | -- | ✓ |
+| Multi-provider AI (Claude/Gemini/OpenRouter) | -- | ✓ |
+| Machine federation & sync | -- | ✓ |
+| LaunchAgent management (macOS) | -- | ✓ |
+| Multi-machine deployment | -- | ✓ |
+| SettingsDefaultsManager (42 config vars) | -- | ✓ |
+
+## Screenshots
+
+![Federation Dashboard](docs/screenshots/federation-screenshot.png)
+
+![Claude-Mem Dashboard](docs/screenshots/claude-mem-dashboard-screenshot.png)
 
 ## Quick Start
 
-Start a new Claude Code session in the terminal and enter the following commands:
-
-```
-/plugin marketplace add thedotmack/claude-mem
-
-/plugin install claude-mem
+```bash
+# Install from this fork
+claude plugin add tankbottoms/claude-mem
 ```
 
-Restart Claude Code. Context from previous sessions will automatically appear in new sessions.
+Or install from source:
 
-> **Note:** Claude-Mem is also published on npm, but `npm install -g claude-mem` installs the **SDK/library only** — it does not register the plugin hooks or set up the worker service. To use Claude-Mem as a plugin, always install via the `/plugin` commands above.
+```bash
+git clone https://github.com/tankbottoms/claude-mem.git
+cd claude-mem
+bun install
+bun run build
+```
 
+After installation, Claude Code automatically loads the plugin via lifecycle hooks. No additional configuration is required for basic usage -- the worker service starts on `http://127.0.0.1:37777` and the SQLite database is created at `~/.claude-mem/claude-mem.db`.
 
-**Key Features:**
+## Architecture
 
-- 🧠 **Persistent Memory** - Context survives across sessions
-- 📊 **Progressive Disclosure** - Layered memory retrieval with token cost visibility
-- 🔍 **Skill-Based Search** - Query your project history with mem-search skill
-- 🖥️ **Web Viewer UI** - Real-time memory stream at http://localhost:37777
-- 💻 **Claude Desktop Skill** - Search memory from Claude Desktop conversations
-- 🔒 **Privacy Control** - Use `<private>` tags to exclude sensitive content from storage
-- ⚙️ **Context Configuration** - Fine-grained control over what context gets injected
-- 🤖 **Automatic Operation** - No manual intervention required
-- 🔗 **Citations** - Reference past observations with IDs (access via http://localhost:37777/api/observation/{id} or view all in the web viewer at http://localhost:37777)
-- 🧪 **Beta Channel** - Try experimental features like Endless Mode via version switching
+### Lifecycle Hooks
 
----
+Claude-Mem integrates with Claude Code through 5 lifecycle hooks plus a setup phase:
 
-## Documentation
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| **Setup** | Plugin load | Run `setup.sh` for initial configuration |
+| **SessionStart** | `startup\|clear\|compact` | Smart install, start worker service, inject session context |
+| **UserPromptSubmit** | Every user prompt | Initialize session tracking |
+| **PostToolUse** | Every tool call | Record observations (code reads, edits, searches, decisions) |
+| **Stop** | Response complete | Generate session summary with AI |
+| **SessionEnd** | Session close | Finalize session, cleanup |
 
-📚 **[View Full Documentation](https://docs.claude-mem.ai/)** - Browse on official website
+### Core Components
 
-### Getting Started
+1. **Worker Service** -- Express HTTP API on port 37777 (HTTP) / 37778 (HTTPS), managed by Bun
+2. **SQLite Database** -- Stores sessions, observations, summaries with FTS5 full-text search
+3. **ChromaDB** -- Vector embeddings for hybrid semantic + keyword search
+4. **mem-search Skill** -- Natural language queries with progressive disclosure (3-layer workflow)
+5. **Web Viewer UI** -- React dashboard at `http://localhost:37777`
 
-- **[Installation Guide](https://docs.claude-mem.ai/installation)** - Quick start & advanced installation
-- **[Usage Guide](https://docs.claude-mem.ai/usage/getting-started)** - How Claude-Mem works automatically
-- **[Search Tools](https://docs.claude-mem.ai/usage/search-tools)** - Query your project history with natural language
-- **[Beta Features](https://docs.claude-mem.ai/beta-features)** - Try experimental features like Endless Mode
+### Data Flow
 
-### Best Practices
+```
+Claude Code  -->  Lifecycle Hooks  -->  Worker Service (:37777)
+                                            |
+                                     +------+------+
+                                     |             |
+                                  SQLite        ChromaDB
+                                  (FTS5)       (vectors)
+                                     |             |
+                                     +------+------+
+                                            |
+                                     Federation Sync
+                                      (peer-to-peer)
+```
 
-- **[Context Engineering](https://docs.claude-mem.ai/context-engineering)** - AI agent context optimization principles
-- **[Progressive Disclosure](https://docs.claude-mem.ai/progressive-disclosure)** - Philosophy behind Claude-Mem's context priming strategy
+## HTTPS/TLS with Tailscale
 
-### Architecture
+The fork adds native HTTPS support using Tailscale-issued TLS certificates. This enables secure inter-machine communication across the tailnet.
 
-- **[Overview](https://docs.claude-mem.ai/architecture/overview)** - System components & data flow
-- **[Architecture Evolution](https://docs.claude-mem.ai/architecture-evolution)** - The journey from v3 to v5
-- **[Hooks Architecture](https://docs.claude-mem.ai/hooks-architecture)** - How Claude-Mem uses lifecycle hooks
-- **[Hooks Reference](https://docs.claude-mem.ai/architecture/hooks)** - 7 hook scripts explained
-- **[Worker Service](https://docs.claude-mem.ai/architecture/worker-service)** - HTTP API & Bun management
-- **[Database](https://docs.claude-mem.ai/architecture/database)** - SQLite schema & FTS5 search
-- **[Search Architecture](https://docs.claude-mem.ai/architecture/search-architecture)** - Hybrid search with Chroma vector database
+### How It Works
 
-### Configuration & Development
+1. **`getMagicDNSHostname()`** (`src/shared/tailscale-utils.ts`) detects the machine's Tailscale MagicDNS name by running `tailscale status --self --json` and extracting `Self.DNSName`
+2. **`TlsCertResolver`** (`src/services/server/TlsCertResolver.ts`) searches for certificate files matching `<hostname>.crt` and `<hostname>.key` in this order:
+   - `CLAUDE_MEM_HTTPS_CERT_DIR` (explicit override)
+   - `~/.local/share/tailscale/certs/` (macOS default)
+   - `/var/lib/tailscale/certs/` (Linux default)
+3. The `Server` class creates an HTTPS listener on a separate port sharing the same Express app
 
-- **[Configuration](https://docs.claude-mem.ai/configuration)** - Environment variables & settings
-- **[Development](https://docs.claude-mem.ai/development)** - Building, testing, contributing
-- **[Troubleshooting](https://docs.claude-mem.ai/troubleshooting)** - Common issues & solutions
+### Enable HTTPS
 
----
+Set via environment variable or launchd plist:
 
-## How It Works
+```bash
+export CLAUDE_MEM_HTTPS_ENABLED=true
+export CLAUDE_MEM_HTTPS_PORT=37778  # default
+```
 
-**Core Components:**
+Generate certificates with Tailscale:
 
-1. **5 Lifecycle Hooks** - SessionStart, UserPromptSubmit, PostToolUse, Stop, SessionEnd (6 hook scripts)
-2. **Smart Install** - Cached dependency checker (pre-hook script, not a lifecycle hook)
-3. **Worker Service** - HTTP API on port 37777 with web viewer UI and 10 search endpoints, managed by Bun
-4. **SQLite Database** - Stores sessions, observations, summaries
-5. **mem-search Skill** - Natural language queries with progressive disclosure
-6. **Chroma Vector Database** - Hybrid semantic + keyword search for intelligent context retrieval
+```bash
+sudo tailscale cert <your-machine>.your-tailnet.ts.net
+# Copies .crt and .key to the appropriate cert directory
+```
 
-See [Architecture Overview](https://docs.claude-mem.ai/architecture/overview) for details.
+## ChromaDB Vector Search
 
----
+The fork integrates ChromaDB for hybrid semantic + keyword search, providing significantly better recall than FTS5 alone.
+
+### How It Works
+
+- **ChromaSync** (`src/services/sync/ChromaSync.ts`) automatically syncs observations and session summaries from SQLite into ChromaDB collections
+- **ChromaSearchStrategy** queries Chroma for semantically similar documents, filters by recency (90-day window), and hydrates results from SQLite
+- Communication with ChromaDB happens via MCP protocol through `ChromaMcpManager`
+
+### Configuration
+
+```bash
+CLAUDE_MEM_CHROMA_ENABLED=true       # Enable ChromaDB (default: true)
+CLAUDE_MEM_CHROMA_MODE=local         # 'local' or 'remote'
+CLAUDE_MEM_CHROMA_HOST=127.0.0.1     # ChromaDB host
+CLAUDE_MEM_CHROMA_PORT=8000          # ChromaDB port (default: 8000)
+CLAUDE_MEM_CHROMA_SSL=false          # Use SSL for Chroma connection
+CLAUDE_MEM_CHROMA_API_KEY=           # API key (if using authenticated Chroma)
+CLAUDE_MEM_CHROMA_TENANT=default_tenant
+CLAUDE_MEM_CHROMA_DATABASE=default_database
+```
+
+## Multi-Provider AI
+
+The fork supports three AI providers for observation summarization and context generation:
+
+| Provider | Setting | Default Model | Auth |
+|----------|---------|---------------|------|
+| **Claude** | `CLAUDE_MEM_PROVIDER=claude` | `claude-sonnet-4-5` | CLI subscription (`cli`) or API key (`api`) |
+| **Gemini** | `CLAUDE_MEM_PROVIDER=gemini` | `gemini-2.5-flash-lite` | `CLAUDE_MEM_GEMINI_API_KEY` |
+| **OpenRouter** | `CLAUDE_MEM_PROVIDER=openrouter` | `xiaomi/mimo-v2-flash:free` | `CLAUDE_MEM_OPENROUTER_API_KEY` |
+
+OpenRouter supports LiteLLM proxy via `CLAUDE_MEM_OPENROUTER_API_BASE` for self-hosted model routing.
+
+## Machine Federation
+
+Federation enables peer-to-peer observation sync across machines. Each machine's worker service exposes a `/api/federation/pull` endpoint that peers can query.
+
+### federation.json
+
+The federation config lives at `~/.claude-mem/federation.json`:
+
+```json
+{
+  "peers": [
+    {
+      "name": "spark-1",
+      "urls": ["http://192.168.1.76:37777"],
+      "enabled": true
+    },
+    {
+      "name": "studio",
+      "urls": [
+        "http://192.168.1.217:37777",
+        "https://studio.example-tailnet.ts.net:37778"
+      ],
+      "enabled": true
+    }
+  ]
+}
+```
+
+The `urls` array supports fallback -- if the first URL fails, the sync script tries the next.
+
+### federation-sync.sh
+
+The sync script (`scripts/federation-sync.sh`) runs via cron every 5 minutes:
+
+```bash
+# Add to crontab
+*/5 * * * * /path/to/federation-sync.sh >> /tmp/claude-mem-sync.log 2>&1
+```
+
+- Batch size: 500 observations per round
+- Safety cap: 50 rounds (25,000 observations max per peer per run)
+- Reads config from `~/.claude-mem/federation.json`
+
+## Machine Deployment
+
+| Machine | Role | LAN IP | HTTP | HTTPS | Chroma |
+|---------|------|--------|------|-------|--------|
+| studio | Dev, source of truth | 192.168.1.217 | :37777 | :37778 | :8000 |
+| spark-1 | Production (GPU) | 192.168.1.76 | :37777 | -- | :8100 |
+| spark-2 | Production (GPU) | 192.168.1.63 | :37777 | -- | :8000 |
+| mbp2022 | Laptop | 192.168.1.13 | :37777 | -- | :8000 |
+| mbp2020 | Laptop | 192.168.1.205 | :37777 | -- | :8000 |
+| mbp2019 | Laptop | 192.168.1.145 | :37777 | -- | :8000 |
+
+All machines run version 10.5.6. studio is the only machine that pushes to git; all others pull from `origin main`.
+
+## LaunchAgent Management (macOS)
+
+Three LaunchAgent plists manage the worker lifecycle:
+
+| Plist | Label | Purpose | Interval |
+|-------|-------|---------|----------|
+| `com.claude-mem.worker.plist` | Worker | Runs `worker-service.cjs` via Bun, `KeepAlive: true` | Always |
+| `com.claude-mem.cleanup.plist` | Cleanup | Runs `claude-mem-cleanup.sh` | 120s |
+| `com.claude-mem.network-watchdog.plist` | Watchdog | Runs `network-watchdog.sh` | 300s |
+
+The worker plist sets HTTPS env vars via `EnvironmentVariables` dict:
+
+```xml
+<key>EnvironmentVariables</key>
+<dict>
+    <key>CLAUDE_MEM_HTTPS_ENABLED</key>
+    <string>true</string>
+    <key>CLAUDE_MEM_HTTPS_PORT</key>
+    <string>37778</string>
+</dict>
+```
+
+### Worker Restart Procedure
+
+```bash
+# Unload watchdog first (prevents auto-restart during maintenance)
+launchctl unload ~/Library/LaunchAgents/com.claude-mem.network-watchdog.plist
+
+# Unload worker
+launchctl unload ~/Library/LaunchAgents/com.claude-mem.worker.plist
+
+# Reload worker
+launchctl load ~/Library/LaunchAgents/com.claude-mem.worker.plist
+
+# Reload watchdog
+launchctl load ~/Library/LaunchAgents/com.claude-mem.network-watchdog.plist
+```
+
+## Configuration Reference
+
+All settings are managed through `SettingsDefaultsManager` (`src/shared/SettingsDefaultsManager.ts`). Settings can be configured via environment variables, the `~/.claude-mem/settings.json` file, or launchd `EnvironmentVariables`.
+
+> **Known issue:** `SettingsDefaultsManager.get()` reads `process.env > hardcoded defaults` only, skipping file-loaded settings. The full priority chain (`process.env > settings file > defaults`) is only available via `loadFromFile()`. For reliable overrides, use environment variables or launchd `EnvironmentVariables` dict.
+
+### Core Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_MEM_MODEL` | `claude-sonnet-4-5` | AI model for summarization |
+| `CLAUDE_MEM_CONTEXT_OBSERVATIONS` | `50` | Number of observations in context window |
+| `CLAUDE_MEM_WORKER_PORT` | `37777` | HTTP listen port |
+| `CLAUDE_MEM_WORKER_HOST` | `127.0.0.1` | HTTP listen host |
+| `CLAUDE_MEM_SKIP_TOOLS` | `ListMcpResourcesTool,...` | Tool names to skip observing |
+| `CLAUDE_MEM_DATA_DIR` | `~/.claude-mem` | Data directory |
+| `CLAUDE_MEM_LOG_LEVEL` | *(default)* | Log verbosity |
+| `CLAUDE_MEM_MODE` | *(default)* | Operating mode |
+
+### AI Provider Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_MEM_PROVIDER` | `claude` | AI provider: `claude`, `gemini`, or `openrouter` |
+| `CLAUDE_MEM_CLAUDE_AUTH_METHOD` | `cli` | Claude auth: `cli` (subscription) or `api` (key) |
+| `CLAUDE_MEM_GEMINI_API_KEY` | *(empty)* | Gemini API key |
+| `CLAUDE_MEM_GEMINI_MODEL` | `gemini-2.5-flash-lite` | Gemini model |
+| `CLAUDE_MEM_GEMINI_RATE_LIMITING_ENABLED` | `true` | Rate limiting for free tier |
+| `CLAUDE_MEM_OPENROUTER_API_KEY` | *(empty)* | OpenRouter API key |
+| `CLAUDE_MEM_OPENROUTER_API_BASE` | *(empty)* | Custom API base (for LiteLLM proxy) |
+| `CLAUDE_MEM_OPENROUTER_MODEL` | `xiaomi/mimo-v2-flash:free` | OpenRouter model |
+| `CLAUDE_MEM_OPENROUTER_MAX_CONTEXT_MESSAGES` | `20` | Max context messages |
+| `CLAUDE_MEM_OPENROUTER_MAX_TOKENS` | *(default)* | Max output tokens |
+
+### Display & Context Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_MEM_CONTEXT_SHOW_READ_TOKENS` | *(default)* | Show read token counts |
+| `CLAUDE_MEM_CONTEXT_SHOW_WORK_TOKENS` | *(default)* | Show work token counts |
+| `CLAUDE_MEM_CONTEXT_SHOW_SAVINGS_AMOUNT` | *(default)* | Show savings amount |
+| `CLAUDE_MEM_CONTEXT_SHOW_SAVINGS_PERCENT` | *(default)* | Show savings percentage |
+| `CLAUDE_MEM_CONTEXT_FULL_COUNT` | *(default)* | Full context observation count |
+| `CLAUDE_MEM_CONTEXT_FULL_FIELD` | *(default)* | Full context field |
+| `CLAUDE_MEM_CONTEXT_SESSION_COUNT` | `10` | Session context count |
+| `CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY` | `true` | Show last session summary |
+| `CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE` | `false` | Show last user message |
+| `CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT` | `true` | Show terminal output |
+
+### HTTPS/TLS Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_MEM_HTTPS_ENABLED` | `false` | Enable HTTPS listener |
+| `CLAUDE_MEM_HTTPS_PORT` | `37778` | HTTPS listen port |
+| `CLAUDE_MEM_HTTPS_CERT_DIR` | *(empty)* | Cert directory (empty = auto-detect from Tailscale) |
+
+### ChromaDB Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_MEM_CHROMA_ENABLED` | `true` | Enable ChromaDB integration |
+| `CLAUDE_MEM_CHROMA_MODE` | `local` | `local` or `remote` |
+| `CLAUDE_MEM_CHROMA_HOST` | `127.0.0.1` | ChromaDB host |
+| `CLAUDE_MEM_CHROMA_PORT` | `8000` | ChromaDB port |
+| `CLAUDE_MEM_CHROMA_SSL` | `false` | Use SSL for Chroma |
+| `CLAUDE_MEM_CHROMA_API_KEY` | *(empty)* | Chroma API key |
+| `CLAUDE_MEM_CHROMA_TENANT` | `default_tenant` | Chroma tenant |
+| `CLAUDE_MEM_CHROMA_DATABASE` | `default_database` | Chroma database |
+
+### Process & Feature Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_MEM_MAX_CONCURRENT_AGENTS` | `2` | Max concurrent Claude SDK agent subprocesses |
+| `CLAUDE_MEM_EXCLUDED_PROJECTS` | *(empty)* | Comma-separated glob patterns for excluded projects |
+| `CLAUDE_MEM_FOLDER_MD_EXCLUDE` | `[]` | JSON array of folder paths to exclude from CLAUDE.md generation |
+| `CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED` | `false` | Enable per-folder CLAUDE.md generation |
 
 ## MCP Search Tools
 
-Claude-Mem provides intelligent memory search through **4 MCP tools** following a token-efficient **3-layer workflow pattern**:
+The worker exposes search via MCP protocol with a 3-layer progressive disclosure workflow:
 
-**The 3-Layer Workflow:**
+1. **`search(query)`** -- Returns an index with observation IDs (~50-100 tokens per result)
+2. **`timeline(anchor=ID)`** -- Returns context around interesting results
+3. **`get_observations([IDs])`** -- Fetches full details only for filtered IDs
 
-1. **`search`** - Get compact index with IDs (~50-100 tokens/result)
-2. **`timeline`** - Get chronological context around interesting results
-3. **`get_observations`** - Fetch full details ONLY for filtered IDs (~500-1,000 tokens/result)
-
-**How It Works:**
-- Claude uses MCP tools to search your memory
-- Start with `search` to get an index of results
-- Use `timeline` to see what was happening around specific observations
-- Use `get_observations` to fetch full details for relevant IDs
-- **~10x token savings** by filtering before fetching details
-
-**Available MCP Tools:**
-
-1. **`search`** - Search memory index with full-text queries, filters by type/date/project
-2. **`timeline`** - Get chronological context around a specific observation or query
-3. **`get_observations`** - Fetch full observation details by IDs (always batch multiple IDs)
-
-**Example Usage:**
-
-```typescript
-// Step 1: Search for index
-search(query="authentication bug", type="bugfix", limit=10)
-
-// Step 2: Review index, identify relevant IDs (e.g., #123, #456)
-
-// Step 3: Fetch full details
-get_observations(ids=[123, 456])
-```
-
-See [Search Tools Guide](https://docs.claude-mem.ai/usage/search-tools) for detailed examples.
-
----
-
-## Beta Features
-
-Claude-Mem offers a **beta channel** with experimental features like **Endless Mode** (biomimetic memory architecture for extended sessions). Switch between stable and beta versions from the web viewer UI at http://localhost:37777 → Settings.
-
-See **[Beta Features Documentation](https://docs.claude-mem.ai/beta-features)** for details on Endless Mode and how to try it.
-
----
+Additional tools: `smart_search` (tree-sitter AST), `smart_unfold` (expand symbols), `smart_outline` (file structure).
 
 ## System Requirements
 
-- **Node.js**: 18.0.0 or higher
-- **Claude Code**: Latest version with plugin support
-- **Bun**: JavaScript runtime and process manager (auto-installed if missing)
-- **uv**: Python package manager for vector search (auto-installed if missing)
-- **SQLite 3**: For persistent storage (bundled)
-
----
-### Windows Setup Notes
-
-If you see an error like:
-
-```powershell
-npm : The term 'npm' is not recognized as the name of a cmdlet
-```
-
-Make sure Node.js and npm are installed and added to your PATH. Download the latest Node.js installer from https://nodejs.org and restart your terminal after installation.
-
----
-
-## Configuration
-
-Settings are managed in `~/.claude-mem/settings.json` (auto-created with defaults on first run). Configure AI model, worker port, data directory, log level, and context injection settings.
-
-See the **[Configuration Guide](https://docs.claude-mem.ai/configuration)** for all available settings and examples.
-
----
+- **Node.js** >= 18.0.0
+- **Bun** (recommended for worker service)
+- **Claude Code** CLI
+- **Tailscale** (optional, for HTTPS/TLS and MagicDNS)
+- **ChromaDB** (optional, for vector search -- install via `pip install chromadb` or run as Docker container)
 
 ## Development
 
-See the **[Development Guide](https://docs.claude-mem.ai/development)** for build instructions, testing, and contribution workflow.
-
----
+```bash
+bun install
+bun run build        # Build all components
+bun run build:watch  # Watch mode
+bun run test         # Run tests
+```
 
 ## Troubleshooting
 
-If experiencing issues, describe the problem to Claude and the troubleshoot skill will automatically diagnose and provide fixes.
-
-See the **[Troubleshooting Guide](https://docs.claude-mem.ai/troubleshooting)** for common issues and solutions.
-
----
+- **Worker not starting**: Check `~/.claude-mem/logs/` and `/tmp/claude-mem-worker.log`
+- **HTTPS not working**: Verify Tailscale certs exist at the expected path with `ls ~/.local/share/tailscale/certs/`
+- **ChromaDB connection failed**: Ensure ChromaDB is running on the configured host:port
+- **Federation sync failing**: Check `~/.claude-mem/federation.json` peer URLs and verify worker is running on remote machines
 
 ## Bug Reports
 
-Create comprehensive bug reports with the automated generator:
-
-```bash
-cd ~/.claude/plugins/marketplaces/thedotmack
-npm run bug-report
-```
+If you encounter issues, please file a report at [github.com/tankbottoms/claude-mem/issues](https://github.com/tankbottoms/claude-mem/issues).
 
 ## Contributing
 
-Contributions are welcome! Please:
+Contributions welcome. Please review the existing code style and architecture before submitting PRs.
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Update documentation
-5. Submit a Pull Request
-
-See [Development Guide](https://docs.claude-mem.ai/development) for contribution workflow.
-
----
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0).
-
-Copyright (C) 2025 Alex Newman (@thedotmack). All rights reserved.
-
-See the [LICENSE](LICENSE) file for full details.
-
-**What This Means:**
-
-- You can use, modify, and distribute this software freely
-- If you modify and deploy on a network server, you must make your source code available
-- Derivative works must also be licensed under AGPL-3.0
-- There is NO WARRANTY for this software
-
-**Note on Ragtime**: The `ragtime/` directory is licensed separately under the **PolyForm Noncommercial License 1.0.0**. See [ragtime/LICENSE](ragtime/LICENSE) for details.
-
----
-
-## Support
-
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/thedotmack/claude-mem/issues)
-- **Repository**: [github.com/thedotmack/claude-mem](https://github.com/thedotmack/claude-mem)
-- **Official X Account**: [@Claude_Memory](https://x.com/Claude_Memory)
-- **Official Discord**: [Join Discord](https://discord.com/invite/J4wttp9vDu)
-- **Author**: Alex Newman ([@thedotmack](https://github.com/thedotmack))
+This project is licensed under the [AGPL-3.0 License](LICENSE).
 
 ---
 
