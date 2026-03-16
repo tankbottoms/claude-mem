@@ -145,7 +145,7 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
                 Machines
               </h3>
               <div className="fed-machines-grid">
-                {machines.map(m => {
+                {[...machines].sort((a, b) => { const aL = a.machine === stats?.worker?.hostname; const bL = b.machine === stats?.worker?.hostname; if (aL && !bL) return -1; if (!aL && bL) return 1; return a.machine.localeCompare(b.machine); }).map(m => {
                   const color = getMachineColor(m.machine);
                   const magicDns = getMagicDnsHostname(m.machine);
                   const ip = getMachineIp(m.machine);
@@ -173,7 +173,6 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
                           )}
                           {m.machine}
                         </span>
-                        {isLocal && <span className="fed-local-tag">local</span>}
                       </div>
                       <div className="fed-machine-card-stats">
                         <span className="fed-machine-count">{m.count.toLocaleString()}</span>
