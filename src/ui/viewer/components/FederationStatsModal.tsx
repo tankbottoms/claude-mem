@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Stats } from '../types';
 import { API_ENDPOINTS } from '../constants/api';
-import { getMachineColor, getMagicDnsUrl, getMagicDnsHostname, getMachineIp } from '../utils/machines';
+import { getMachineColor, getMagicDnsUrl, getMagicDnsHostname, getMachineIp, probeHttps } from '../utils/machines';
 
 interface FederationStatsModalProps {
   isOpen: boolean;
@@ -36,6 +36,7 @@ function formatTimestamp(epoch: number): string {
 export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine }: FederationStatsModalProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [httpsUrls, setHttpsUrls] = useState<Record<string, string>>({});
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -52,6 +53,25 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
   useEffect(() => {
     if (isOpen) fetchStats();
   }, [isOpen, fetchStats]);
+
+  // Probe HTTPS availability for each machine when stats load
+  useEffect(() => {
+    const machines = stats?.federation?.machines;
+    if (!machines || machines.length === 0) return;
+    const urls: Record<string, string> = {};
+    let cancelled = false;
+    Promise.all(
+      machines.map(async (m: { machine: string }) => {
+        const httpsUrl = await probeHttps(m.machine);
+        if (httpsUrl && !cancelled) {
+          urls[m.machine] = httpsUrl;
+        }
+      })
+    ).then(() => {
+      if (!cancelled) setHttpsUrls({ ...urls });
+    });
+    return () => { cancelled = true; };
+  }, [stats]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -151,14 +171,16 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
                   const ip = getMachineIp(m.machine);
                   const isLocal = m.machine === stats?.worker?.hostname;
                   const pct = totalObs > 0 ? ((m.count / totalObs) * 100).toFixed(1) : '0';
+                  const machineUrl = httpsUrls[m.machine] || getMagicDnsUrl(m.machine);
+                  const isHttps = !!httpsUrls[m.machine];
                   return (
                     <a
                       key={m.machine}
                       className="fed-machine-card"
-                      href={getMagicDnsUrl(m.machine)}
+                      href={machineUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title={`${magicDns}${ip ? ` (${ip})` : ''}\nClick to open viewer`}
+                      title={`${magicDns}${ip ? ` (${ip})` : ''}${isHttps ? ' [HTTPS]' : ''}\nClick to open viewer`}
                       style={{ borderColor: color.border }}
                     >
                       <div className="fed-machine-card-header">
@@ -173,6 +195,9 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
                           )}
                           {m.machine}
                         </span>
+                        {isHttps && (
+                          <i className="fas fa-lock" style={{ fontSize: '0.6rem', color: '#4ade80', marginLeft: '4px' }} title="HTTPS available"></i>
+                        )}
                       </div>
                       <div className="fed-machine-card-stats">
                         <span className="fed-machine-count">{m.count.toLocaleString()}</span>
