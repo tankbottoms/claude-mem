@@ -284,11 +284,34 @@ export class ChromaSync {
           metadatas: cleanMetadatas
         });
       } catch (error) {
-        logger.error('CHROMA_SYNC', 'Batch add failed, continuing with remaining batches', {
-          collection: this.collectionName,
-          batchStart: i,
-          batchSize: batch.length
-        }, error as Error);
+        const msg = (error as Error).message || '';
+        if (msg.includes('already exist')) {
+          logger.info('CHROMA_SYNC', 'Batch has existing IDs, falling back to update', {
+            collection: this.collectionName,
+            batchStart: i,
+            batchSize: batch.length
+          });
+          try {
+            await chromaMcp.callTool('chroma_update_documents', {
+              collection_name: this.collectionName,
+              ids: batch.map(d => d.id),
+              documents: batch.map(d => d.document),
+              metadatas: cleanMetadatas
+            });
+          } catch (updateError) {
+            logger.error('CHROMA_SYNC', 'Update fallback also failed', {
+              collection: this.collectionName,
+              batchStart: i,
+              batchSize: batch.length
+            }, updateError as Error);
+          }
+        } else {
+          logger.error('CHROMA_SYNC', 'Batch add failed, continuing with remaining batches', {
+            collection: this.collectionName,
+            batchStart: i,
+            batchSize: batch.length
+          }, error as Error);
+        }
       }
     }
 
