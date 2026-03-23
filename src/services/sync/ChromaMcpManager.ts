@@ -14,7 +14,8 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
@@ -22,12 +23,15 @@ import { logger } from '../../utils/logger.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { USER_SETTINGS_PATH } from '../../shared/paths.js';
 
+const execAsync = promisify(exec);
+
 const CHROMA_MCP_CLIENT_NAME = 'claude-mem-chroma';
 const CHROMA_MCP_CLIENT_VERSION = '1.0.0';
 const MCP_CONNECTION_TIMEOUT_MS = 30_000;
 const RECONNECT_BACKOFF_MS = 10_000; // Don't retry connections faster than this after failure
 const SUBPROCESS_KILL_TIMEOUT_MS = 3_000; // Wait this long for SIGTERM before SIGKILL
 const DEFAULT_CHROMA_DATA_DIR = path.join(os.homedir(), '.claude-mem', 'chroma');
+const CHROMA_PID_FILE = path.join(os.homedir(), '.claude-mem', 'chroma-mcp.pid');
 
 export class ChromaMcpManager {
   private static instance: ChromaMcpManager | null = null;
@@ -39,6 +43,14 @@ export class ChromaMcpManager {
   private subprocessPid: number | null = null;
 
   private constructor() {}
+
+  /**
+   * Get the currently tracked chroma-mcp subprocess PID (for external reaper integration).
+   * Returns null if no subprocess is tracked or no instance exists.
+   */
+  static getCurrentSubprocessPid(): number | null {
+    return ChromaMcpManager.instance?.subprocessPid ?? null;
+  }
 
   /**
    * Get or create the singleton instance
@@ -98,16 +110,25 @@ export class ChromaMcpManager {
 
   /**
    * Extract the subprocess PID from StdioClientTransport's internal ChildProcess.
-   * The MCP SDK stores the spawned process internally. We access it defensively
-   * to track PIDs for cleanup without depending on SDK internals.
+   * The MCP SDK stores the spawned process internally. We probe multiple possible
+   * field names across SDK versions to maximize extraction reliability.
    */
   private extractSubprocessPid(): number | null {
     try {
-      // StdioClientTransport stores the ChildProcess internally
       const transportAny = this.transport as any;
-      const proc = transportAny?._process ?? transportAny?.process;
-      return proc?.pid ?? null;
+      // Try known field names across MCP SDK versions
+      const proc = transportAny?._process
+        ?? transportAny?.process
+        ?? transportAny?._serverProcess
+        ?? transportAny?.subprocess
+        ?? transportAny?._subprocess;
+      const pid = proc?.pid ?? null;
+      if (pid === null) {
+        logger.warn('CHROMA_MCP', 'Failed to extract subprocess PID from transport — orphan cleanup will rely on OS-level scan');
+      }
+      return pid;
     } catch {
+      logger.warn('CHROMA_MCP', 'Exception extracting subprocess PID from transport');
       return null;
     }
   }
@@ -130,10 +151,122 @@ export class ChromaMcpManager {
   }
 
   /**
+   * Kill orphaned chroma-mcp processes owned by the current user.
+   * Scans via `ps` and kills any chroma-mcp process except the currently tracked PID.
+   * This is the primary defense against subprocess accumulation — even if PID extraction
+   * fails or transport.close() doesn't work, stale processes get cleaned up here.
+   */
+  private async killOrphanedChromaMcpProcesses(): Promise<number> {
+    if (process.platform === 'win32') return 0;
+
+    let killed = 0;
+
+    // Build set of PIDs to protect: the tracked uvx launcher PID and its children
+    const protectedPids = new Set<number>();
+    if (this.subprocessPid) protectedPids.add(this.subprocessPid);
+
+    // Find children of the tracked PID (the Python process spawned by uvx)
+    if (this.subprocessPid) {
+      try {
+        const { stdout } = await execAsync(
+          `ps -eo pid,ppid 2>/dev/null | awk '$2 == ${this.subprocessPid} {print $1}'`
+        );
+        for (const line of stdout.trim().split('\n')) {
+          const childPid = parseInt(line.trim(), 10);
+          if (!isNaN(childPid)) protectedPids.add(childPid);
+        }
+      } catch {
+        // Non-critical — ps scan below will still work
+      }
+    }
+
+    try {
+      const { stdout } = await execAsync(
+        'ps -eo pid,args 2>/dev/null | grep "chroma-mcp" | grep -v grep || true'
+      );
+
+      for (const line of stdout.trim().split('\n')) {
+        if (!line) continue;
+        const match = line.trim().match(/^(\d+)/);
+        if (!match) continue;
+        const pid = parseInt(match[1], 10);
+
+        // Don't kill the current subprocess or its children
+        if (protectedPids.has(pid)) continue;
+
+        try {
+          process.kill(pid, 'SIGKILL');
+          killed++;
+          logger.warn('CHROMA_MCP', `Killed orphaned chroma-mcp process PID ${pid}`);
+        } catch {
+          // ESRCH = already dead
+        }
+      }
+
+      if (killed > 0) {
+        logger.info('CHROMA_MCP', `Cleaned up ${killed} orphaned chroma-mcp processes before reconnect`);
+      }
+    } catch {
+      // No matches or command error — no orphans to kill
+    }
+
+    // Also check PID file as fallback
+    try {
+      if (fs.existsSync(CHROMA_PID_FILE)) {
+        const filePid = parseInt(fs.readFileSync(CHROMA_PID_FILE, 'utf8').trim(), 10);
+        if (!isNaN(filePid) && !protectedPids.has(filePid)) {
+          try {
+            process.kill(filePid, 0); // existence check
+            process.kill(filePid, 'SIGKILL');
+            killed++;
+            logger.warn('CHROMA_MCP', `Killed stale PID ${filePid} from PID file`);
+          } catch {
+            // Already dead
+          }
+        }
+        fs.unlinkSync(CHROMA_PID_FILE);
+      }
+    } catch {
+      // PID file read/delete error — non-critical
+    }
+
+    return killed;
+  }
+
+  /**
+   * Write the current subprocess PID to a file for cross-process cleanup.
+   */
+  private writePidFile(): void {
+    if (this.subprocessPid === null) return;
+    try {
+      fs.writeFileSync(CHROMA_PID_FILE, String(this.subprocessPid));
+    } catch {
+      // Non-critical — OS-level scan is the primary cleanup mechanism
+    }
+  }
+
+  /**
+   * Remove the PID file on stop.
+   */
+  private removePidFile(): void {
+    try {
+      if (fs.existsSync(CHROMA_PID_FILE)) {
+        fs.unlinkSync(CHROMA_PID_FILE);
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  /**
    * Internal connection logic - spawns uvx chroma-mcp and performs MCP handshake.
    * Called behind the connection lock to ensure only one connection attempt at a time.
    */
   private async connectInternal(): Promise<void> {
+    // Kill any orphaned chroma-mcp processes before spawning a new one.
+    // This is the primary defense against subprocess accumulation.
+    await this.killOrphanedChromaMcpProcesses();
+
     // Clean up any stale client/transport from a dead subprocess.
     // Close transport first (kills subprocess via SIGTERM) before client
     // to avoid hanging on a stuck process.
@@ -221,8 +354,11 @@ export class ChromaMcpManager {
 
     this.connected = true;
     this.subprocessPid = this.extractSubprocessPid();
+    this.writePidFile();
 
-    logger.info('CHROMA_MCP', 'Connected to chroma-mcp successfully');
+    logger.info('CHROMA_MCP', 'Connected to chroma-mcp successfully', {
+      pid: this.subprocessPid ?? 'unknown'
+    });
 
     // Listen for transport close to mark connection as dead and apply backoff.
     // CRITICAL: Guard with reference check to prevent stale onclose handlers from
@@ -322,9 +458,9 @@ export class ChromaMcpManager {
       // Transport error: chroma-mcp subprocess likely died (e.g., killed by orphan reaper,
       // HNSW index corruption). Mark connection dead and retry once after reconnect (#1131).
       // Without this retry, callers see a one-shot error even though reconnect would succeed.
+      // NOTE: Only set connected=false here. Do NOT null transport/client — connectInternal()
+      // needs them to send SIGTERM via transport.close() before spawning a new subprocess.
       this.connected = false;
-      this.client = null;
-      this.transport = null;
 
       logger.warn('CHROMA_MCP', `Transport error during "${toolName}", reconnecting and retrying once`, {
         error: transportError instanceof Error ? transportError.message : String(transportError)
@@ -418,6 +554,7 @@ export class ChromaMcpManager {
     this.connected = false;
     this.connecting = null;
     this.subprocessPid = null;
+    this.removePidFile();
 
     logger.info('CHROMA_MCP', 'chroma-mcp MCP connection stopped');
   }

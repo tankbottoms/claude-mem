@@ -302,6 +302,71 @@ async function killSystemOrphans(): Promise<number> {
 }
 
 /**
+ * Kill orphaned chroma-mcp Python subprocesses.
+ * These accumulate when ChromaMcpManager fails to clean up old connections
+ * (e.g., PID extraction fails, transport.close() doesn't kill the process).
+ * Only kills processes whose parent is this worker daemon or ppid=1 (reparented orphans),
+ * and skips the PID that ChromaMcpManager reports as its current subprocess.
+ */
+async function killOrphanedChromaMcp(): Promise<number> {
+  if (process.platform === 'win32') return 0;
+
+  // Lazy import to avoid circular dependency at module load time
+  const { ChromaMcpManager } = await import('../sync/ChromaMcpManager.js');
+  const currentPid = ChromaMcpManager.getCurrentSubprocessPid();
+  const daemonPid = process.pid;
+  let killed = 0;
+
+  // Build protected PID set: the tracked uvx launcher and its children (Python process)
+  const protectedPids = new Set<number>();
+  if (currentPid) protectedPids.add(currentPid);
+
+  try {
+    const { stdout } = await execAsync(
+      'ps -eo pid,ppid,args 2>/dev/null | grep "chroma-mcp" | grep -v grep || true'
+    );
+
+    // First pass: identify children of the tracked PID
+    for (const line of stdout.trim().split('\n')) {
+      if (!line) continue;
+      const match = line.trim().match(/^(\d+)\s+(\d+)/);
+      if (!match) continue;
+      const pid = parseInt(match[1], 10);
+      const ppid = parseInt(match[2], 10);
+      if (currentPid && ppid === currentPid) protectedPids.add(pid);
+    }
+
+    // Second pass: kill orphans
+    for (const line of stdout.trim().split('\n')) {
+      if (!line) continue;
+      const match = line.trim().match(/^(\d+)\s+(\d+)/);
+      if (!match) continue;
+
+      const pid = parseInt(match[1], 10);
+      const ppid = parseInt(match[2], 10);
+
+      // Skip the currently active chroma-mcp subprocess tree
+      if (protectedPids.has(pid)) continue;
+
+      // Only kill if parent is this worker daemon or ppid=1 (orphaned)
+      if (ppid !== daemonPid && ppid !== 1) continue;
+
+      logger.warn('PROCESS', `Killing orphaned chroma-mcp PID ${pid} (ppid=${ppid})`, { pid, ppid });
+      try {
+        process.kill(pid, 'SIGKILL');
+        killed++;
+      } catch {
+        // Already dead
+      }
+    }
+  } catch {
+    // No matches or command error
+  }
+
+  return killed;
+}
+
+/**
  * Reap orphaned processes - both registry-tracked and system-level
  */
 export async function reapOrphanedProcesses(activeSessionIds: Set<number>): Promise<number> {
@@ -326,6 +391,9 @@ export async function reapOrphanedProcesses(activeSessionIds: Set<number>): Prom
 
   // Daemon children: find idle SDK processes that didn't terminate
   killed += await killIdleDaemonChildren();
+
+  // Chroma-mcp: find orphaned chroma-mcp Python subprocesses
+  killed += await killOrphanedChromaMcp();
 
   return killed;
 }
