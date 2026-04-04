@@ -129,6 +129,9 @@ import { MemoryRoutes } from './worker/http/routes/MemoryRoutes.js';
 // Process management for zombie cleanup (Issue #737)
 import { startOrphanReaper, reapOrphanedProcesses, getProcessBySession, ensureProcessExit } from './worker/ProcessRegistry.js';
 
+// Supervisor lifecycle (PR #1370)
+import { startSupervisor, stopSupervisor, registerProcess as supervisorRegister } from '../supervisor/index.js';
+
 /**
  * Build JSON status output for hook framework communication.
  * This is a pure function extracted for testability.
@@ -395,6 +398,14 @@ export class WorkerService {
    */
   private async initializeBackground(): Promise<void> {
     try {
+      // Start supervisor early — manages all child process lifecycle
+      await startSupervisor();
+      supervisorRegister('worker', {
+        pid: process.pid,
+        type: 'worker',
+        label: 'claude-mem worker service',
+      });
+
       await aggressiveStartupCleanup();
 
       // Load mode configuration
@@ -917,6 +928,9 @@ export class WorkerService {
       dbManager: this.dbManager,
       chromaMcpManager: this.chromaMcpManager || undefined
     });
+
+    // Stop supervisor last — kills any remaining managed processes
+    await stopSupervisor();
   }
 
   /**

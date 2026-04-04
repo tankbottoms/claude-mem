@@ -22,6 +22,8 @@ import fs from 'fs';
 import { logger } from '../../utils/logger.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { USER_SETTINGS_PATH } from '../../shared/paths.js';
+import { sanitizeEnv } from '../../supervisor/env-sanitizer.js';
+import { registerProcess, unregisterProcess, assertCanSpawn } from '../../supervisor/index.js';
 
 const execAsync = promisify(exec);
 
@@ -29,6 +31,7 @@ const CHROMA_MCP_CLIENT_NAME = 'claude-mem-chroma';
 const CHROMA_MCP_CLIENT_VERSION = '1.0.0';
 const MCP_CONNECTION_TIMEOUT_MS = 30_000;
 const RECONNECT_BACKOFF_MS = 10_000; // Don't retry connections faster than this after failure
+const CHROMA_SUPERVISOR_ID = 'chroma-mcp';
 const SUBPROCESS_KILL_TIMEOUT_MS = 3_000; // Wait this long for SIGTERM before SIGKILL
 const DEFAULT_CHROMA_DATA_DIR = path.join(os.homedir(), '.claude-mem', 'chroma');
 const CHROMA_PID_FILE = path.join(os.homedir(), '.claude-mem', 'chroma-mcp.pid');
@@ -41,8 +44,20 @@ export class ChromaMcpManager {
   private lastConnectionFailureTimestamp: number = 0;
   private connecting: Promise<void> | null = null;
   private subprocessPid: number | null = null;
+  private disabled: boolean = false;
 
   private constructor() {}
+
+  /**
+   * Permanently disable Chroma for this worker lifetime.
+   * Called on HNSW corruption or when settings say disabled.
+   * Disconnects and prevents reconnection.
+   */
+  async disable(reason: string): Promise<void> {
+    this.disabled = true;
+    logger.warn('CHROMA_MCP', `Chroma disabled: ${reason}`);
+    await this.stop();
+  }
 
   /**
    * Get the currently tracked chroma-mcp subprocess PID (for external reaper integration).
@@ -83,6 +98,17 @@ export class ChromaMcpManager {
   private async ensureConnected(): Promise<void> {
     if (this.connected && this.client) {
       return;
+    }
+
+    // Refuse to connect if permanently disabled (HNSW corruption or settings)
+    if (this.disabled) {
+      throw new Error('chroma-mcp is disabled for this worker lifetime (HNSW corruption or settings)');
+    }
+
+    // Respect CLAUDE_MEM_CHROMA_ENABLED=false setting even on lazy-connect path
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+    if (settings.CLAUDE_MEM_CHROMA_ENABLED === 'false') {
+      throw new Error('chroma-mcp is disabled via CLAUDE_MEM_CHROMA_ENABLED=false');
     }
 
     // Backoff: don't retry connections too fast after a failure
@@ -263,6 +289,9 @@ export class ChromaMcpManager {
    * Called behind the connection lock to ensure only one connection attempt at a time.
    */
   private async connectInternal(): Promise<void> {
+    // Guard: check supervisor allows spawning
+    assertCanSpawn('chroma mcp');
+
     // Kill any orphaned chroma-mcp processes before spawning a new one.
     // This is the primary defense against subprocess accumulation.
     await this.killOrphanedChromaMcpProcesses();
@@ -348,6 +377,8 @@ export class ChromaMcpManager {
       this.transport = null;
       this.connected = false;
       this.subprocessPid = null;
+      // Unregister from supervisor on connection failure
+      unregisterProcess(CHROMA_SUPERVISOR_ID);
       throw connectionError;
     }
     clearTimeout(timeoutId!);
@@ -359,6 +390,15 @@ export class ChromaMcpManager {
     logger.info('CHROMA_MCP', 'Connected to chroma-mcp successfully', {
       pid: this.subprocessPid ?? 'unknown'
     });
+
+    // Register with supervisor for lifecycle management
+    if (this.subprocessPid) {
+      registerProcess(CHROMA_SUPERVISOR_ID, {
+        pid: this.subprocessPid,
+        type: 'chroma',
+        label: 'chroma-mcp subprocess',
+      });
+    }
 
     // Listen for transport close to mark connection as dead and apply backoff.
     // CRITICAL: Guard with reference check to prevent stale onclose handlers from
@@ -482,6 +522,24 @@ export class ChromaMcpManager {
     if (result.isError) {
       const errorText = (result.content as Array<{ type: string; text?: string }>)
         ?.find(item => item.type === 'text')?.text || 'Unknown chroma-mcp error';
+
+      // Detect HNSW index corruption — these errors are unrecoverable without manual intervention.
+      // Retrying against a corrupt index will never succeed and wastes resources.
+      const hnswPatterns = [
+        'Failed to apply logs to the hnsw segment writer',
+        'hnsw_index',
+        'segment writer',
+        'compactor',
+      ];
+      const isHnswCorruption = hnswPatterns.some(p => errorText.toLowerCase().includes(p.toLowerCase()));
+      if (isHnswCorruption) {
+        logger.error('CHROMA_MCP', `HNSW index corruption detected: ${errorText}. Disabling Chroma until restart.`);
+        this.disabled = true;
+        this.connected = false;
+        this.lastConnectionFailureTimestamp = Date.now();
+        throw new Error(`chroma-mcp HNSW corruption — manual intervention required (delete ~/.claude-mem/chroma and restart): ${errorText}`);
+      }
+
       throw new Error(`chroma-mcp tool "${toolName}" returned error: ${errorText}`);
     }
 
@@ -555,6 +613,12 @@ export class ChromaMcpManager {
     this.connecting = null;
     this.subprocessPid = null;
     this.removePidFile();
+
+    // Unregister from supervisor
+    unregisterProcess(CHROMA_SUPERVISOR_ID);
+
+    // Kill any remaining orphans after stop
+    await this.killOrphanedChromaMcpProcesses();
 
     logger.info('CHROMA_MCP', 'chroma-mcp MCP connection stopped');
   }
@@ -645,12 +709,8 @@ export class ChromaMcpManager {
    * Otherwise returns a plain string-keyed copy of process.env.
    */
   private getSpawnEnv(): Record<string, string> {
-    const baseEnv: Record<string, string> = {};
-    for (const [key, value] of Object.entries(process.env)) {
-      if (value !== undefined) {
-        baseEnv[key] = value;
-      }
-    }
+    // Use sanitized env to strip CLAUDECODE_* vars that cause nested session issues (#1352)
+    const baseEnv = sanitizeEnv(process.env);
 
     // Ensure PATH includes common user binary directories where uvx is installed.
     // When the worker daemon is spawned from a non-login shell context (e.g., Claude Code),
