@@ -14,7 +14,7 @@ type DataItem = Observation | Summary | UserPrompt;
 /**
  * Generic pagination hook for observations, summaries, and prompts
  */
-function usePaginationFor(endpoint: string, dataType: DataType, currentFilter: string) {
+function usePaginationFor(endpoint: string, dataType: DataType, currentFilter: string, machineFilter: string = '') {
   const [state, setState] = useState<PaginationState>({
     isLoading: false,
     hasMore: true
@@ -31,11 +31,12 @@ function usePaginationFor(endpoint: string, dataType: DataType, currentFilter: s
    */
   const loadMore = useCallback(async (): Promise<DataItem[]> => {
     // Check if filter changed - if so, reset pagination synchronously
-    const filterChanged = lastFilterRef.current !== currentFilter;
+    const combinedFilter = `${currentFilter}|${machineFilter}`;
+    const filterChanged = lastFilterRef.current !== combinedFilter;
 
     if (filterChanged) {
       offsetRef.current = 0;
-      lastFilterRef.current = currentFilter;
+      lastFilterRef.current = combinedFilter;
 
       // Reset state both in React state and ref synchronously
       const newState = { isLoading: false, hasMore: true };
@@ -62,6 +63,11 @@ function usePaginationFor(endpoint: string, dataType: DataType, currentFilter: s
       params.append('project', currentFilter);
     }
 
+    // Add machine filter if present
+    if (machineFilter) {
+      params.append('source_machine', machineFilter);
+    }
+
     const response = await fetch(`${endpoint}?${params}`);
 
     if (!response.ok) {
@@ -80,7 +86,7 @@ function usePaginationFor(endpoint: string, dataType: DataType, currentFilter: s
     offsetRef.current += UI.PAGINATION_PAGE_SIZE;
 
     return data.items;
-  }, [currentFilter, endpoint, dataType]);
+  }, [currentFilter, machineFilter, endpoint, dataType]);
 
   return {
     ...state,
@@ -91,8 +97,8 @@ function usePaginationFor(endpoint: string, dataType: DataType, currentFilter: s
 /**
  * Hook for paginating observations
  */
-export function usePagination(currentFilter: string) {
-  const observations = usePaginationFor(API_ENDPOINTS.OBSERVATIONS, 'observations', currentFilter);
+export function usePagination(currentFilter: string, machineFilter: string = '') {
+  const observations = usePaginationFor(API_ENDPOINTS.OBSERVATIONS, 'observations', currentFilter, machineFilter);
   const summaries = usePaginationFor(API_ENDPOINTS.SUMMARIES, 'summaries', currentFilter);
   const prompts = usePaginationFor(API_ENDPOINTS.PROMPTS, 'prompts', currentFilter);
 

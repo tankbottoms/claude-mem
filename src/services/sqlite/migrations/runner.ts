@@ -35,6 +35,8 @@ export class MigrationRunner {
     this.addObservationContentHashColumn();
     this.addSessionCustomTitleColumn();
     this.createObservationFeedbackTable();
+    this.addFederationSyncTracking();
+    this.addDeferredChromaSync();
   }
 
   /**
@@ -890,5 +892,59 @@ export class MigrationRunner {
 
     this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(24, new Date().toISOString());
     logger.debug('DB', 'Created observation_feedback table for usage tracking');
+  }
+
+  /**
+   * Add federation sync tracking table and source_machine column (migration 25)
+   * Enables multi-machine observation synchronization with deduplication.
+   */
+  private addFederationSyncTracking(): void {
+    const applied = this.db.query('SELECT 1 FROM schema_versions WHERE version = 25').get();
+    if (applied) return;
+
+    // Create federation_sync deduplication table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS federation_sync (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        remote_id INTEGER NOT NULL,
+        source_machine TEXT NOT NULL,
+        record_type TEXT NOT NULL DEFAULT 'observation',
+        local_id INTEGER,
+        synced_at_epoch INTEGER NOT NULL,
+        UNIQUE(remote_id, source_machine, record_type)
+      )
+    `);
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_federation_sync_lookup ON federation_sync(source_machine, record_type, remote_id)');
+    this.db.run('CREATE INDEX IF NOT EXISTS idx_federation_sync_time ON federation_sync(synced_at_epoch DESC)');
+
+    // Add source_machine column to observations
+    const tableInfo = this.db.query('PRAGMA table_info(observations)').all() as TableColumnInfo[];
+    const hasColumn = tableInfo.some(col => col.name === 'source_machine');
+    if (!hasColumn) {
+      this.db.run('ALTER TABLE observations ADD COLUMN source_machine TEXT');
+      this.db.run('CREATE INDEX IF NOT EXISTS idx_observations_source ON observations(source_machine)');
+      logger.debug('DB', 'Added source_machine column to observations table');
+    }
+
+    this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(25, new Date().toISOString());
+    logger.debug('DB', 'Created federation_sync table for multi-machine sync');
+  }
+
+  /**
+   * Add needs_chroma_sync column for deferred ChromaDB indexing (migration 26)
+   * Federation imports are stored first, then indexed into ChromaDB asynchronously.
+   */
+  private addDeferredChromaSync(): void {
+    const applied = this.db.query('SELECT 1 FROM schema_versions WHERE version = 26').get();
+    if (applied) return;
+
+    const tableInfo = this.db.query('PRAGMA table_info(observations)').all() as TableColumnInfo[];
+    const hasColumn = tableInfo.some(col => col.name === 'needs_chroma_sync');
+    if (!hasColumn) {
+      this.db.run('ALTER TABLE observations ADD COLUMN needs_chroma_sync INTEGER DEFAULT 0');
+      logger.debug('DB', 'Added needs_chroma_sync column to observations table');
+    }
+
+    this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(26, new Date().toISOString());
   }
 }

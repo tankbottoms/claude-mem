@@ -28,6 +28,11 @@ src/ui/viewer.html
 .mcp.json
 .cursor/
 
+# Machine-specific config (generated per-install)
+src/ui/viewer/utils/machines.ts
+CLAUDE.md
+AGENTS.md
+
 # Ignore WebStorm project files (for dinosaur IDE users)
 .idea/
 

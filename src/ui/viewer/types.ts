@@ -14,6 +14,7 @@ export interface Observation {
   prompt_number: number | null;
   created_at: string;
   created_at_epoch: number;
+  source_machine?: string | null;
 }
 
 export interface Summary {
@@ -91,6 +92,7 @@ export interface WorkerStats {
   uptime?: number;
   activeSessions?: number;
   sseClients?: number;
+  hostname?: string;
 }
 
 export interface DatabaseStats {
@@ -98,9 +100,25 @@ export interface DatabaseStats {
   observations?: number;
   sessions?: number;
   summaries?: number;
+  projectCount?: number;
+  avgChars?: number;
+  avgDiscoveryTokens?: number;
+  syncCount?: number;
+}
+
+export interface MachineStats {
+  machine: string;
+  count: number;
+  last_seen: number;
+}
+
+export interface FederationStats {
+  machines: MachineStats[];
+  projectMachines: Record<string, Array<{ machine: string; count: number }>>;
 }
 
 export interface Stats {
-  worker?: WorkerStats;
+  worker?: WorkerStats & { hostname?: string };
   database?: DatabaseStats;
+  federation?: FederationStats;
 }

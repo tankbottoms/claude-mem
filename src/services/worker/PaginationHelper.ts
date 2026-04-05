@@ -71,13 +71,14 @@ export class PaginationHelper {
   /**
    * Get paginated observations
    */
-  getObservations(offset: number, limit: number, project?: string): PaginatedResult<Observation> {
+  getObservations(offset: number, limit: number, project?: string, sourceMachine?: string): PaginatedResult<Observation> {
     const result = this.paginate<Observation>(
       'observations',
-      'id, memory_session_id, project, type, title, subtitle, narrative, text, facts, concepts, files_read, files_modified, prompt_number, created_at, created_at_epoch',
+      'id, memory_session_id, project, type, title, subtitle, narrative, text, facts, concepts, files_read, files_modified, prompt_number, created_at, created_at_epoch, source_machine',
       offset,
       limit,
-      project
+      project,
+      sourceMachine
     );
 
     // Strip project paths from file paths before returning
@@ -169,16 +170,27 @@ export class PaginationHelper {
     columns: string,
     offset: number,
     limit: number,
-    project?: string
+    project?: string,
+    sourceMachine?: string
   ): PaginatedResult<T> {
     const db = this.dbManager.getSessionStore().db;
 
     let query = `SELECT ${columns} FROM ${table}`;
     const params: any[] = [];
+    const conditions: string[] = [];
 
     if (project) {
-      query += ' WHERE project = ?';
+      conditions.push('project = ?');
       params.push(project);
+    }
+
+    if (sourceMachine) {
+      conditions.push('source_machine = ?');
+      params.push(sourceMachine);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY created_at_epoch DESC LIMIT ? OFFSET ?';

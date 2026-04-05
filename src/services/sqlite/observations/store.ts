@@ -75,8 +75,8 @@ export function storeObservation(
   const stmt = db.prepare(`
     INSERT INTO observations
     (memory_session_id, project, type, title, subtitle, facts, narrative, concepts,
-     files_read, files_modified, prompt_number, discovery_tokens, content_hash, created_at, created_at_epoch)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     files_read, files_modified, prompt_number, discovery_tokens, content_hash, created_at, created_at_epoch, source_machine)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -94,7 +94,8 @@ export function storeObservation(
     discoveryTokens,
     contentHash,
     timestampIso,
-    timestampEpoch
+    timestampEpoch,
+    null // source_machine: NULL = local observation
   );
 
   return {

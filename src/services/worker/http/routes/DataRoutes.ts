@@ -9,7 +9,7 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { readFileSync, statSync, existsSync } from 'fs';
 import { logger } from '../../../../utils/logger.js';
-import { homedir } from 'os';
+import { homedir, hostname } from 'os';
 import { getPackageRoot } from '../../../../shared/paths.js';
 import { getWorkerPort } from '../../../../shared/worker-utils.js';
 import { PaginationHelper } from '../../PaginationHelper.js';
@@ -66,8 +66,8 @@ export class DataRoutes extends BaseRouteHandler {
    * Get paginated observations
    */
   private handleGetObservations = this.wrapHandler((req: Request, res: Response): void => {
-    const { offset, limit, project } = this.parsePaginationParams(req);
-    const result = this.paginationHelper.getObservations(offset, limit, project);
+    const { offset, limit, project, sourceMachine } = this.parsePaginationParams(req);
+    const result = this.paginationHelper.getObservations(offset, limit, project, sourceMachine);
     res.json(result);
   });
 
@@ -233,20 +233,72 @@ export class DataRoutes extends BaseRouteHandler {
     const activeSessions = this.sessionManager.getActiveSessionCount();
     const sseClients = this.sseBroadcaster.getClientCount();
 
+    // Extended stats
+    const projectCount = db.prepare('SELECT COUNT(DISTINCT project) as count FROM observations WHERE project IS NOT NULL').get() as { count: number };
+    const avgChars = db.prepare(`SELECT CAST(AVG(LENGTH(COALESCE(title,'') || COALESCE(subtitle,'') || COALESCE(narrative,'') || COALESCE(facts,''))) as INT) as avg_chars FROM observations`).get() as { avg_chars: number };
+    const avgTokens = db.prepare('SELECT CAST(AVG(discovery_tokens) as INT) as avg_tokens FROM observations WHERE discovery_tokens > 0').get() as { avg_tokens: number };
+
+    // Federation sync count (may not exist on all installs)
+    let syncCount = 0;
+    try {
+      const syncRow = db.prepare('SELECT COUNT(*) as count FROM federation_sync').get() as { count: number };
+      syncCount = syncRow.count;
+    } catch {
+      // federation_sync table may not exist
+    }
+
+    // Federation stats: per-machine observation counts
+    const localHostname = hostname();
+    let machineRows: Array<{ machine: string; count: number; last_seen: number }> = [];
+    let projectMachines: Record<string, Array<{ machine: string; count: number }>> = {};
+    try {
+      machineRows = db.prepare(`
+        SELECT COALESCE(source_machine, ?) as machine, COUNT(*) as count,
+               MAX(created_at_epoch) as last_seen
+        FROM observations
+        GROUP BY source_machine
+        ORDER BY count DESC
+      `).all(localHostname) as Array<{ machine: string; count: number; last_seen: number }>;
+
+      const projectMachineRows = db.prepare(`
+        SELECT project, COALESCE(source_machine, ?) as machine, COUNT(*) as count
+        FROM observations
+        WHERE project IS NOT NULL
+        GROUP BY project, source_machine
+        ORDER BY project, count DESC
+      `).all(localHostname) as Array<{ project: string; machine: string; count: number }>;
+
+      for (const row of projectMachineRows) {
+        if (!projectMachines[row.project]) projectMachines[row.project] = [];
+        projectMachines[row.project].push({ machine: row.machine, count: row.count });
+      }
+    } catch {
+      // source_machine column may not exist yet
+    }
+
     res.json({
       worker: {
         version,
         uptime,
         activeSessions,
         sseClients,
-        port: getWorkerPort()
+        port: getWorkerPort(),
+        hostname: localHostname
       },
       database: {
         path: dbPath,
         size: dbSize,
         observations: totalObservations.count,
         sessions: totalSessions.count,
-        summaries: totalSummaries.count
+        summaries: totalSummaries.count,
+        projectCount: projectCount.count,
+        avgChars: avgChars.avg_chars,
+        avgDiscoveryTokens: avgTokens.avg_tokens,
+        syncCount
+      },
+      federation: {
+        machines: machineRows,
+        projectMachines
       }
     });
   });
@@ -299,12 +351,13 @@ export class DataRoutes extends BaseRouteHandler {
   /**
    * Parse pagination parameters from request query
    */
-  private parsePaginationParams(req: Request): { offset: number; limit: number; project?: string } {
+  private parsePaginationParams(req: Request): { offset: number; limit: number; project?: string; sourceMachine?: string } {
     const offset = parseInt(req.query.offset as string, 10) || 0;
     const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100); // Max 100
     const project = req.query.project as string | undefined;
+    const sourceMachine = req.query.source_machine as string | undefined;
 
-    return { offset, limit, project };
+    return { offset, limit, project, sourceMachine };
   }
 
   /**

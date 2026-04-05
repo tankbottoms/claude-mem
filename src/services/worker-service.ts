@@ -330,6 +330,10 @@ export class WorkerService {
     this.server.registerRoutes(new SettingsRoutes(this.settingsManager));
     this.server.registerRoutes(new LogsRoutes());
     this.server.registerRoutes(new MemoryRoutes(this.dbManager, 'claude-mem'));
+
+    // Federation sync routes (export/import/status/identity)
+    const { FederationSyncRoutes } = require('./worker/http/routes/FederationSyncRoutes.js');
+    this.server.registerRoutes(new FederationSyncRoutes(this.dbManager));
   }
 
   /**
@@ -454,6 +458,16 @@ export class WorkerService {
         }).catch(error => {
           logger.error('CHROMA_SYNC', 'Backfill failed (non-blocking)', {}, error as Error);
         });
+      }
+
+      // Process any observations deferred from federation import (fire-and-forget)
+      try {
+        const { ChromaSyncQueue } = await import('./sync/ChromaSyncQueue.js');
+        ChromaSyncQueue.processQueue(this.dbManager.getSessionStore().db).catch(error => {
+          logger.error('FEDERATION', 'Deferred chroma sync failed (non-blocking)', {}, error as Error);
+        });
+      } catch {
+        // ChromaSyncQueue may not be available — non-fatal
       }
 
       // Connect to MCP server
