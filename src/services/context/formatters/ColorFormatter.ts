@@ -13,6 +13,7 @@ import type {
 import { colors } from '../types.js';
 import { ModeManager } from '../../domain/ModeManager.js';
 import { formatObservationTokenDisplay } from '../TokenCalculator.js';
+import { formatCompactDate, formatTime24 } from '../../../shared/timeline-formatting.js';
 
 /**
  * Format current date/time for header display
@@ -115,8 +116,7 @@ export function renderColorContextEconomics(
  */
 export function renderColorDayHeader(day: string): string[] {
   return [
-    `${colors.bright}${colors.cyan}${day}${colors.reset}`,
-    ''
+    `${colors.bright}${colors.cyan}${day}${colors.reset}`
   ];
 }
 
@@ -130,50 +130,56 @@ export function renderColorFileHeader(file: string): string[] {
 }
 
 /**
- * Render colored table row for observation
+ * Render colored table row for observation (compact format)
+ * Layout: #ID  [glyph type]  title  file  (time)
+ * dateStr is shown only when the day changes (passed by TimelineRenderer)
  */
 export function renderColorTableRow(
   obs: Observation,
   time: string,
   showTime: boolean,
-  config: ContextConfig
+  config: ContextConfig,
+  file?: string,
+  dateStr?: string
 ): string {
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
-  const { readTokens, discoveryTokens, workEmoji } = formatObservationTokenDisplay(obs, config);
+  const typeId = obs.type || '';
 
-  const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
-  const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
-  const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const idPad = `#${obs.id}`.padEnd(6);
+  const typePart = typeId ? `${icon}  ${typeId}` : '';
+  const filePart = file && file !== 'General' ? `  ${colors.dim}${file.split('/').pop()}${colors.reset}` : '';
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timeSuffix = showTime ? `  ${colors.dim}(${datePart}${time})${colors.reset}` : '';
 
-  return `  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${title} ${readPart} ${discoveryPart}`;
+  return `  ${colors.dim}${idPad}${colors.reset}  ${typePart ? `${typePart} ` : ''}${title}${filePart}${timeSuffix}`;
 }
 
 /**
- * Render colored full observation
+ * Render colored full observation (compact format)
+ * Layout: #ID  [glyph  type]  title  (time)
  */
 export function renderColorFullObservation(
   obs: Observation,
   time: string,
   showTime: boolean,
   detailField: string | null,
-  config: ContextConfig
+  config: ContextConfig,
+  dateStr?: string
 ): string[] {
   const output: string[] = [];
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
-  const { readTokens, discoveryTokens, workEmoji } = formatObservationTokenDisplay(obs, config);
+  const typeId = obs.type || '';
 
-  const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
-  const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
-  const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const idPad = `#${obs.id}`.padEnd(6);
+  const typePart = typeId ? `${icon}  ${typeId}` : '';
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timeSuffix = showTime ? `  ${colors.dim}(${datePart}${time})${colors.reset}` : '';
 
-  output.push(`  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${colors.bright}${title}${colors.reset}`);
+  output.push(`  ${colors.dim}${idPad}${colors.reset}  ${typePart ? `${typePart} ` : ''}${colors.bright}${title}${colors.reset}${timeSuffix}`);
   if (detailField) {
     output.push(`    ${colors.dim}${detailField}${colors.reset}`);
-  }
-  if (readPart || discoveryPart) {
-    output.push(`    ${readPart} ${discoveryPart}`);
   }
   output.push('');
 
@@ -181,16 +187,15 @@ export function renderColorFullObservation(
 }
 
 /**
- * Render colored summary item in timeline
+ * Render colored summary item in timeline (compact format)
+ * formattedTime should be compact like "3/12 13:17" or "13:22"
  */
 export function renderColorSummaryItem(
   summary: { id: number; request: string | null },
   formattedTime: string
 ): string[] {
-  const summaryTitle = `${summary.request || 'Session started'} (${formattedTime})`;
   return [
-    `${colors.yellow}#S${summary.id}${colors.reset} ${summaryTitle}`,
-    ''
+    `${colors.yellow}#S${summary.id}${colors.reset}  ${summary.request || 'Session started'}  ${colors.dim}(${formattedTime})${colors.reset}`
   ];
 }
 
@@ -199,7 +204,41 @@ export function renderColorSummaryItem(
  */
 export function renderColorSummaryField(label: string, value: string | null, color: string): string[] {
   if (!value) return [];
-  return [`${color}${label}:${colors.reset} ${value}`, ''];
+  const glyphs: Record<string, string> = {
+    'Investigated': '\u{F0349}',  // nf-md-magnify
+    'Learned': '\u{F06E8}',       // nf-md-lightbulb_on
+    'Completed': '\u{F012C}',     // nf-md-check
+    'Next Steps': '\u{F0054}',    // nf-md-arrow_right
+  };
+  const glyph = glyphs[label] || '\u25cf';
+  // Format: glyph + 2 spaces + text
+  // When text wraps, indent aligns under text start
+  const prefix = `${color}${glyph}${colors.reset}  `;
+  const indent = '    ';
+  const words = value.split(' ');
+  const maxWidth = 120;
+  const prefixLen = 4; // glyph(2col) + 2 spaces = 4 visual columns
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLen = currentLine ? currentLine.length + 1 + word.length : word.length;
+    const lineMax = lines.length === 0 ? maxWidth - prefixLen : maxWidth - indent.length;
+    if (currentLine && testLen > lineMax) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = currentLine ? currentLine + ' ' + word : word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  const result: string[] = [];
+  result.push(`${prefix}${lines[0] || ''}`);
+  for (const line of lines.slice(1)) {
+    result.push(indent + line);
+  }
+  return result;
 }
 
 /**
@@ -226,7 +265,7 @@ export function renderColorFooter(totalDiscoveryTokens: number, totalReadTokens:
   const workTokensK = Math.round(totalDiscoveryTokens / 1000);
   return [
     '',
-    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t. Use the claude-mem skill to access memories by ID.${colors.reset}`
+    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t.${colors.reset}`
   ];
 }
 

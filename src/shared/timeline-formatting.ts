@@ -103,6 +103,26 @@ export function extractFirstFile(
 }
 
 /**
+ * Format compact date (e.g., "3/13") - M/D, no year, no leading zeros
+ * For color terminal output only
+ */
+export function formatCompactDate(dateInput: string | number): string {
+  const date = new Date(dateInput);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+/**
+ * Format 24h time (e.g., "17:09") - HH:MM
+ * For color terminal output only
+ */
+export function formatTime24(dateInput: string | number): string {
+  const date = new Date(dateInput);
+  const h = date.getHours().toString().padStart(2, '0');
+  const m = date.getMinutes().toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+/**
  * Estimate token count for text (rough approximation: ~4 chars per token)
  */
 export function estimateTokens(text: string | null): number {
