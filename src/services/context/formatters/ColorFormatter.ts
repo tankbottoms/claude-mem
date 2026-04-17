@@ -1,5 +1,5 @@
 /**
- * HumanFormatter - Formats context output with ANSI colors for terminal
+ * ColorFormatter - Formats context output with ANSI colors for terminal
  *
  * Handles all colored formatting for context injection (terminal display).
  */
@@ -13,6 +13,7 @@ import type {
 import { colors } from '../types.js';
 import { ModeManager } from '../../domain/ModeManager.js';
 import { formatObservationTokenDisplay } from '../TokenCalculator.js';
+import { formatCompactDate, formatTime24 } from '../../../shared/timeline-formatting.js';
 
 /**
  * Format current date/time for header display
@@ -30,9 +31,9 @@ function formatHeaderDateTime(): string {
 }
 
 /**
- * Render human-readable header
+ * Render colored header
  */
-export function renderHumanHeader(project: string): string[] {
+export function renderColorHeader(project: string): string[] {
   return [
     '',
     `${colors.bright}${colors.cyan}[${project}] recent context, ${formatHeaderDateTime()}${colors.reset}`,
@@ -42,9 +43,9 @@ export function renderHumanHeader(project: string): string[] {
 }
 
 /**
- * Render human-readable legend
+ * Render colored legend
  */
-export function renderHumanLegend(): string[] {
+export function renderColorLegend(): string[] {
   const mode = ModeManager.getInstance().getActiveMode();
   const typeLegendItems = mode.observation_types.map(t => `${t.emoji} ${t.id}`).join(' | ');
 
@@ -55,9 +56,9 @@ export function renderHumanLegend(): string[] {
 }
 
 /**
- * Render human-readable column key
+ * Render colored column key
  */
-export function renderHumanColumnKey(): string[] {
+export function renderColorColumnKey(): string[] {
   return [
     `${colors.bright}Column Key${colors.reset}`,
     `${colors.dim}  Read: Tokens to read this observation (cost to learn it now)${colors.reset}`,
@@ -67,9 +68,9 @@ export function renderHumanColumnKey(): string[] {
 }
 
 /**
- * Render human-readable context index instructions
+ * Render colored context index instructions
  */
-export function renderHumanContextIndex(): string[] {
+export function renderColorContextIndex(): string[] {
   return [
     `${colors.dim}Context Index: This semantic index (titles, types, files, tokens) is usually sufficient to understand past work.${colors.reset}`,
     '',
@@ -82,9 +83,9 @@ export function renderHumanContextIndex(): string[] {
 }
 
 /**
- * Render human-readable context economics
+ * Render colored context economics
  */
-export function renderHumanContextEconomics(
+export function renderColorContextEconomics(
   economics: TokenEconomics,
   config: ContextConfig
 ): string[] {
@@ -111,69 +112,74 @@ export function renderHumanContextEconomics(
 }
 
 /**
- * Render human-readable day header
+ * Render colored day header
  */
-export function renderHumanDayHeader(day: string): string[] {
+export function renderColorDayHeader(day: string): string[] {
   return [
-    `${colors.bright}${colors.cyan}${day}${colors.reset}`,
-    ''
+    `${colors.bright}${colors.cyan}${day}${colors.reset}`
   ];
 }
 
 /**
- * Render human-readable file header
+ * Render colored file header
  */
-export function renderHumanFileHeader(file: string): string[] {
+export function renderColorFileHeader(file: string): string[] {
   return [
     `${colors.dim}${file}${colors.reset}`
   ];
 }
 
 /**
- * Render human-readable table row for observation
+ * Render colored table row for observation (compact format)
+ * Layout: #ID  [glyph type]  title  file  (time)
+ * dateStr is shown only when the day changes (passed by TimelineRenderer)
  */
-export function renderHumanTableRow(
+export function renderColorTableRow(
   obs: Observation,
   time: string,
   showTime: boolean,
-  config: ContextConfig
+  config: ContextConfig,
+  file?: string,
+  dateStr?: string
 ): string {
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
-  const { readTokens, discoveryTokens, workEmoji } = formatObservationTokenDisplay(obs, config);
+  const typeId = obs.type || '';
 
-  const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
-  const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
-  const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const idPad = `#${obs.id}`.padEnd(6);
+  const typePart = typeId ? `${icon}  ${typeId}` : '';
+  const filePart = file && file !== 'General' ? `  ${colors.dim}${file.split('/').pop()}${colors.reset}` : '';
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timeSuffix = showTime ? `  ${colors.dim}(${datePart}${time})${colors.reset}` : '';
 
-  return `  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${title} ${readPart} ${discoveryPart}`;
+  return `  ${colors.dim}${idPad}${colors.reset}  ${typePart ? `${typePart} ` : ''}${title}${filePart}${timeSuffix}`;
 }
 
 /**
- * Render human-readable full observation
+ * Render colored full observation (compact format)
+ * Layout: #ID  [glyph  type]  title  (time)
  */
-export function renderHumanFullObservation(
+export function renderColorFullObservation(
   obs: Observation,
   time: string,
   showTime: boolean,
   detailField: string | null,
-  config: ContextConfig
+  config: ContextConfig,
+  dateStr?: string
 ): string[] {
   const output: string[] = [];
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
-  const { readTokens, discoveryTokens, workEmoji } = formatObservationTokenDisplay(obs, config);
+  const typeId = obs.type || '';
 
-  const timePart = showTime ? `${colors.dim}${time}${colors.reset}` : ' '.repeat(time.length);
-  const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
-  const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
+  const idPad = `#${obs.id}`.padEnd(6);
+  const typePart = typeId ? `${icon}  ${typeId}` : '';
+  const datePart = dateStr ? `${dateStr} ` : '';
+  const timeSuffix = showTime ? `  ${colors.dim}(${datePart}${time})${colors.reset}` : '';
 
-  output.push(`  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${colors.bright}${title}${colors.reset}`);
+  output.push(`  ${colors.dim}${idPad}${colors.reset}  ${typePart ? `${typePart} ` : ''}${colors.bright}${title}${colors.reset}${timeSuffix}`);
   if (detailField) {
     output.push(`    ${colors.dim}${detailField}${colors.reset}`);
-  }
-  if (readPart || discoveryPart) {
-    output.push(`    ${readPart} ${discoveryPart}`);
   }
   output.push('');
 
@@ -181,31 +187,64 @@ export function renderHumanFullObservation(
 }
 
 /**
- * Render human-readable summary item in timeline
+ * Render colored summary item in timeline (compact format)
+ * formattedTime should be compact like "3/12 13:17" or "13:22"
  */
-export function renderHumanSummaryItem(
+export function renderColorSummaryItem(
   summary: { id: number; request: string | null },
   formattedTime: string
 ): string[] {
-  const summaryTitle = `${summary.request || 'Session started'} (${formattedTime})`;
   return [
-    `${colors.yellow}#S${summary.id}${colors.reset} ${summaryTitle}`,
-    ''
+    `${colors.yellow}#S${summary.id}${colors.reset}  ${summary.request || 'Session started'}  ${colors.dim}(${formattedTime})${colors.reset}`
   ];
 }
 
 /**
- * Render human-readable summary field
+ * Render colored summary field
  */
-export function renderHumanSummaryField(label: string, value: string | null, color: string): string[] {
+export function renderColorSummaryField(label: string, value: string | null, color: string): string[] {
   if (!value) return [];
-  return [`${color}${label}:${colors.reset} ${value}`, ''];
+  const glyphs: Record<string, string> = {
+    'Investigated': '\u{F0349}',  // nf-md-magnify
+    'Learned': '\u{F06E8}',       // nf-md-lightbulb_on
+    'Completed': '\u{F012C}',     // nf-md-check
+    'Next Steps': '\u{F0054}',    // nf-md-arrow_right
+  };
+  const glyph = glyphs[label] || '\u25cf';
+  // Format: glyph + 2 spaces + text
+  // When text wraps, indent aligns under text start
+  const prefix = `${color}${glyph}${colors.reset}  `;
+  const indent = '    ';
+  const words = value.split(' ');
+  const maxWidth = 120;
+  const prefixLen = 4; // glyph(2col) + 2 spaces = 4 visual columns
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLen = currentLine ? currentLine.length + 1 + word.length : word.length;
+    const lineMax = lines.length === 0 ? maxWidth - prefixLen : maxWidth - indent.length;
+    if (currentLine && testLen > lineMax) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = currentLine ? currentLine + ' ' + word : word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  const result: string[] = [];
+  result.push(`${prefix}${lines[0] || ''}`);
+  for (const line of lines.slice(1)) {
+    result.push(indent + line);
+  }
+  return result;
 }
 
 /**
- * Render human-readable previously section
+ * Render colored previously section
  */
-export function renderHumanPreviouslySection(priorMessages: PriorMessages): string[] {
+export function renderColorPreviouslySection(priorMessages: PriorMessages): string[] {
   if (!priorMessages.assistantMessage) return [];
 
   return [
@@ -220,19 +259,19 @@ export function renderHumanPreviouslySection(priorMessages: PriorMessages): stri
 }
 
 /**
- * Render human-readable footer
+ * Render colored footer
  */
-export function renderHumanFooter(totalDiscoveryTokens: number, totalReadTokens: number): string[] {
+export function renderColorFooter(totalDiscoveryTokens: number, totalReadTokens: number): string[] {
   const workTokensK = Math.round(totalDiscoveryTokens / 1000);
   return [
     '',
-    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t. Use the claude-mem skill to access memories by ID.${colors.reset}`
+    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t.${colors.reset}`
   ];
 }
 
 /**
- * Render human-readable empty state
+ * Render colored empty state
  */
-export function renderHumanEmptyState(project: string): string {
+export function renderColorEmptyState(project: string): string {
   return `\n${colors.bright}${colors.cyan}[${project}] recent context, ${formatHeaderDateTime()}${colors.reset}\n${colors.gray}${'─'.repeat(60)}${colors.reset}\n\n${colors.dim}No previous sessions found for this project yet.${colors.reset}\n`;
 }

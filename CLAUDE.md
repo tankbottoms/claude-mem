@@ -89,6 +89,24 @@ Claude-mem is designed with a clean separation between open-source core function
 
 This architecture preserves the open-source nature of the project while enabling sustainable development through optional paid features.
 
+## Terminal Display Format (DO NOT MODIFY WITHOUT EXPLICIT APPROVAL)
+
+The session-start observation display uses a specific compact format with Font Awesome / Nerd Font icons. This format is intentional and must not be changed during upstream rebases, refactors, or "improvements."
+
+**Protected files:**
+- `plugin/modes/code.json` -- observation type icons (Font Awesome glyphs, NOT standard emojis)
+- `src/services/context/formatters/ColorFormatter.ts` -- compact terminal layout: `#ID [glyph type] title file (time)`, Nerd Font summary glyphs with word-wrap
+- `src/services/context/formatters/MarkdownFormatter.ts` -- table format with Nerd Font summary glyphs
+- `src/services/context/sections/TimelineRenderer.ts` -- compact color timeline with inline date markers (`formatCompactDate`, `formatTime24`)
+- `src/shared/timeline-formatting.ts` -- `formatCompactDate()` and `formatTime24()` helper functions
+
+**Rules:**
+- Never replace Font Awesome/Nerd Font icons with standard emojis
+- Never remove the compact `glyph + type` layout from ColorFormatter
+- Never remove Nerd Font summary field glyphs (Investigated/Learned/Completed/Next Steps)
+- Never remove `formatCompactDate` or `formatTime24` from timeline-formatting.ts
+- When rebasing onto upstream, always restore these files from our fork
+
 ## Important
 
 No need to edit the changelog ever, it's generated automatically.

@@ -24,14 +24,18 @@ export function createMiddleware(
   // JSON parsing with 50mb limit
   middlewares.push(express.json({ limit: '50mb' }));
 
-  // CORS - restrict to localhost origins only
+  // CORS - allow localhost and Tailscale MagicDNS origins
   middlewares.push(cors({
     origin: (origin, callback) => {
       // Allow: requests without Origin header (hooks, curl, CLI tools)
       // Allow: localhost and 127.0.0.1 origins
+      // Allow: Tailscale MagicDNS origins (*.ts.net) for federation viewer access
       if (!origin ||
           origin.startsWith('http://localhost:') ||
-          origin.startsWith('http://127.0.0.1:')) {
+          origin.startsWith('http://127.0.0.1:') ||
+          origin.startsWith('https://localhost:') ||
+          origin.startsWith('https://127.0.0.1:') ||
+          /^https?:\/\/[^/]+\.ts\.net(:\d+)?$/.test(origin)) {
         callback(null, true);
       } else {
         callback(new Error('CORS not allowed'));

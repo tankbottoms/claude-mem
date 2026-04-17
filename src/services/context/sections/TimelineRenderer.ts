@@ -1,8 +1,7 @@
 /**
  * TimelineRenderer - Renders the chronological timeline of observations and summaries
  *
- * Handles day grouping and rendering. In agent (LLM) mode, uses flat compact lines.
- * In human (terminal) mode, uses file grouping with visual formatting.
+ * Handles day grouping, file grouping within days, and table rendering.
  */
 
 import type {
@@ -11,9 +10,10 @@ import type {
   TimelineItem,
   SummaryTimelineItem,
 } from '../types.js';
-import { formatTime, formatDate, formatDateTime, extractFirstFile, parseJsonArray } from '../../../shared/timeline-formatting.js';
-import * as Agent from '../formatters/AgentFormatter.js';
-import * as Human from '../formatters/HumanFormatter.js';
+import { colors } from '../types.js';
+import { formatTime, formatDate, formatDateTime, extractFirstFile, parseJsonArray, formatCompactDate, formatTime24 } from '../../../shared/timeline-formatting.js';
+import * as Markdown from '../formatters/MarkdownFormatter.js';
+import * as Color from '../formatters/ColorFormatter.js';
 
 /**
  * Group timeline items by day
@@ -51,115 +51,120 @@ function getDetailField(obs: Observation, config: ContextConfig): string | null 
 }
 
 /**
- * Render a single day's timeline items (agent/LLM mode - flat compact lines)
- */
-function renderDayTimelineAgent(
-  day: string,
-  dayItems: TimelineItem[],
-  fullObservationIds: Set<number>,
-  config: ContextConfig,
-): string[] {
-  const output: string[] = [];
-
-  output.push(...Agent.renderAgentDayHeader(day));
-
-  let lastTime = '';
-
-  for (const item of dayItems) {
-    if (item.type === 'summary') {
-      const summary = item.data as SummaryTimelineItem;
-      const formattedTime = formatDateTime(summary.displayTime);
-      output.push(...Agent.renderAgentSummaryItem(summary, formattedTime));
-    } else {
-      const obs = item.data as Observation;
-      const time = formatTime(obs.created_at);
-      const showTime = time !== lastTime;
-      const timeDisplay = showTime ? time : '';
-      lastTime = time;
-
-      const shouldShowFull = fullObservationIds.has(obs.id);
-
-      if (shouldShowFull) {
-        const detailField = getDetailField(obs, config);
-        output.push(...Agent.renderAgentFullObservation(obs, timeDisplay, detailField, config));
-      } else {
-        output.push(Agent.renderAgentTableRow(obs, timeDisplay, config));
-      }
-    }
-  }
-
-  return output;
-}
-
-/**
- * Render a single day's timeline items (human/terminal mode - file grouped with tables)
- */
-function renderDayTimelineHuman(
-  day: string,
-  dayItems: TimelineItem[],
-  fullObservationIds: Set<number>,
-  config: ContextConfig,
-  cwd: string,
-): string[] {
-  const output: string[] = [];
-
-  output.push(...Human.renderHumanDayHeader(day));
-
-  let currentFile: string | null = null;
-  let lastTime = '';
-
-  for (const item of dayItems) {
-    if (item.type === 'summary') {
-      currentFile = null;
-      lastTime = '';
-
-      const summary = item.data as SummaryTimelineItem;
-      const formattedTime = formatDateTime(summary.displayTime);
-      output.push(...Human.renderHumanSummaryItem(summary, formattedTime));
-    } else {
-      const obs = item.data as Observation;
-      const file = extractFirstFile(obs.files_modified, cwd, obs.files_read);
-      const time = formatTime(obs.created_at);
-      const showTime = time !== lastTime;
-      lastTime = time;
-
-      const shouldShowFull = fullObservationIds.has(obs.id);
-
-      // Check if we need a new file section
-      if (file !== currentFile) {
-        output.push(...Human.renderHumanFileHeader(file));
-        currentFile = file;
-      }
-
-      if (shouldShowFull) {
-        const detailField = getDetailField(obs, config);
-        output.push(...Human.renderHumanFullObservation(obs, time, showTime, detailField, config));
-      } else {
-        output.push(Human.renderHumanTableRow(obs, time, showTime, config));
-      }
-    }
-  }
-
-  output.push('');
-
-  return output;
-}
-
-/**
- * Render a single day's timeline items
+ * Render a single day's timeline items (markdown path only)
  */
 export function renderDayTimeline(
   day: string,
   dayItems: TimelineItem[],
   fullObservationIds: Set<number>,
   config: ContextConfig,
-  cwd: string,
-  forHuman: boolean
+  cwd: string
 ): string[] {
-  if (forHuman) {
-    return renderDayTimelineHuman(day, dayItems, fullObservationIds, config, cwd);
+  const output: string[] = [];
+
+  output.push(...Markdown.renderMarkdownDayHeader(day));
+
+  let lastTime = '';
+  let tableOpen = false;
+  let hadSummaries = false;
+
+  for (const item of dayItems) {
+    if (item.type === 'summary') {
+      const summary = item.data as SummaryTimelineItem;
+      const formattedTime = formatDateTime(summary.displayTime);
+      output.push(...Markdown.renderMarkdownSummaryItem(summary, formattedTime));
+      hadSummaries = true;
+    } else {
+      // Add blank line between summary items and observation table
+      if (hadSummaries && !tableOpen) {
+        output.push('');
+        hadSummaries = false;
+      }
+      const obs = item.data as Observation;
+      const time = formatTime(obs.created_at);
+      const showTime = time !== lastTime;
+      const timeDisplay = showTime ? time : '';
+      lastTime = time;
+      tableOpen = true;
+
+      const shouldShowFull = fullObservationIds.has(obs.id);
+      if (shouldShowFull) {
+        const detailField = getDetailField(obs, config);
+        output.push(...Markdown.renderMarkdownFullObservation(obs, timeDisplay, detailField, config));
+      } else {
+        output.push(Markdown.renderMarkdownTableRow(obs, timeDisplay, config));
+      }
+    }
   }
-  return renderDayTimelineAgent(day, dayItems, fullObservationIds, config);
+
+  if (tableOpen) {
+    output.push('');
+  }
+
+  return output;
+}
+
+/**
+ * Render compact color timeline with inline date markers
+ */
+function renderColorTimeline(
+  timeline: TimelineItem[],
+  fullObservationIds: Set<number>,
+  config: ContextConfig,
+  cwd: string
+): string[] {
+  const output: string[] = [];
+  let lastDate = '';
+  let lastTime24 = '';
+  let isFirstItem = true;
+
+  for (const item of timeline) {
+    const itemDate = item.type === 'observation'
+      ? (item.data as Observation).created_at
+      : (item.data as SummaryTimelineItem).displayTime;
+
+    const currentDate = formatCompactDate(itemDate);
+    const dateChanged = currentDate !== lastDate;
+
+    if (item.type === 'summary') {
+      const summary = item.data as SummaryTimelineItem;
+      const time24 = formatTime24(summary.displayTime);
+      // Summary format: #S123  title  (3/12 13:17) or (13:22)
+      const timeStr = dateChanged ? `${currentDate} ${time24}` : time24;
+      output.push(...Color.renderColorSummaryItem(summary, timeStr));
+      lastDate = currentDate;
+      lastTime24 = time24;
+    } else {
+      const obs = item.data as Observation;
+      const file = extractFirstFile(obs.files_modified, cwd, obs.files_read);
+      const time24 = formatTime24(obs.created_at);
+      const showTime = time24 !== lastTime24 || dateChanged;
+
+      // Inline date marker: show date on its own line when day changes (after first day)
+      let dateStr: string | undefined;
+      if (dateChanged && !isFirstItem) {
+        // Emit a standalone date line for day transitions
+        output.push(`${colors.bright}${colors.cyan}${currentDate}${colors.reset}`);
+      } else if (dateChanged && isFirstItem) {
+        // First item: show date inline with time
+        dateStr = currentDate;
+      }
+
+      const shouldShowFull = fullObservationIds.has(obs.id);
+      if (shouldShowFull) {
+        const detailField = getDetailField(obs, config);
+        output.push(...Color.renderColorFullObservation(obs, time24, showTime, detailField, config, dateStr));
+      } else {
+        output.push(Color.renderColorTableRow(obs, time24, showTime, config, file, dateStr));
+      }
+
+      lastDate = currentDate;
+      lastTime24 = time24;
+    }
+    isFirstItem = false;
+  }
+
+  return output;
 }
 
 /**
@@ -170,13 +175,18 @@ export function renderTimeline(
   fullObservationIds: Set<number>,
   config: ContextConfig,
   cwd: string,
-  forHuman: boolean
+  useColors: boolean
 ): string[] {
+  if (useColors) {
+    return renderColorTimeline(timeline, fullObservationIds, config, cwd);
+  }
+
+  // Markdown path: group by day with day headers (unchanged)
   const output: string[] = [];
   const itemsByDay = groupTimelineByDay(timeline);
 
   for (const [day, dayItems] of itemsByDay) {
-    output.push(...renderDayTimeline(day, dayItems, fullObservationIds, config, cwd, forHuman));
+    output.push(...renderDayTimeline(day, dayItems, fullObservationIds, config, cwd));
   }
 
   return output;

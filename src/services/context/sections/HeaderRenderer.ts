@@ -6,8 +6,8 @@
 
 import type { ContextConfig, TokenEconomics } from '../types.js';
 import { shouldShowContextEconomics } from '../TokenCalculator.js';
-import * as Agent from '../formatters/AgentFormatter.js';
-import * as Human from '../formatters/HumanFormatter.js';
+import * as Markdown from '../formatters/MarkdownFormatter.js';
+import * as Color from '../formatters/ColorFormatter.js';
 
 /**
  * Render the complete header section
@@ -16,44 +16,30 @@ export function renderHeader(
   project: string,
   economics: TokenEconomics,
   config: ContextConfig,
-  forHuman: boolean
+  useColors: boolean
 ): string[] {
   const output: string[] = [];
 
   // Main header
-  if (forHuman) {
-    output.push(...Human.renderHumanHeader(project));
+  if (useColors) {
+    output.push(...Color.renderColorHeader(project));
   } else {
-    output.push(...Agent.renderAgentHeader(project));
+    output.push(...Markdown.renderMarkdownHeader(project));
   }
 
-  // Legend
-  if (forHuman) {
-    output.push(...Human.renderHumanLegend());
-  } else {
-    output.push(...Agent.renderAgentLegend());
+  if (!useColors) {
+    // Legend, column key, context index - markdown only (Claude needs them)
+    output.push(...Markdown.renderMarkdownLegend());
+    output.push(...Markdown.renderMarkdownColumnKey());
+    output.push(...Markdown.renderMarkdownContextIndex());
   }
 
-  // Column key
-  if (forHuman) {
-    output.push(...Human.renderHumanColumnKey());
-  } else {
-    output.push(...Agent.renderAgentColumnKey());
-  }
-
-  // Context index instructions
-  if (forHuman) {
-    output.push(...Human.renderHumanContextIndex());
-  } else {
-    output.push(...Agent.renderAgentContextIndex());
-  }
-
-  // Context economics
+  // Context economics (both paths)
   if (shouldShowContextEconomics(config)) {
-    if (forHuman) {
-      output.push(...Human.renderHumanContextEconomics(economics, config));
+    if (useColors) {
+      output.push(...Color.renderColorContextEconomics(economics, config));
     } else {
-      output.push(...Agent.renderAgentContextEconomics(economics, config));
+      output.push(...Markdown.renderMarkdownContextEconomics(economics, config));
     }
   }
 

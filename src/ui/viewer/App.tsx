@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
+import { FilterBar } from './components/FilterBar';
 import { Feed } from './components/Feed';
 import { ContextSettingsModal } from './components/ContextSettingsModal';
 import { LogsDrawer } from './components/LogsModal';
+import { FederationStatsModal } from './components/FederationStatsModal';
 import { useSSE } from './hooks/useSSE';
 import { useSettings } from './hooks/useSettings';
 import { useStats } from './hooks/useStats';
@@ -13,66 +15,79 @@ import { mergeAndDeduplicateByProject } from './utils/data';
 
 export function App() {
   const [currentFilter, setCurrentFilter] = useState('');
-  const [currentSource, setCurrentSource] = useState('all');
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [federationModalOpen, setFederationModalOpen] = useState(false);
+  const [machineFilter, setMachineFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [paginatedObservations, setPaginatedObservations] = useState<Observation[]>([]);
   const [paginatedSummaries, setPaginatedSummaries] = useState<Summary[]>([]);
   const [paginatedPrompts, setPaginatedPrompts] = useState<UserPrompt[]>([]);
 
-  const { observations, summaries, prompts, projects, sources, projectsBySource, isProcessing, queueDepth, isConnected } = useSSE();
+  const { observations, summaries, prompts, projects, isProcessing, queueDepth, isConnected } = useSSE();
   const { settings, saveSettings, isSaving, saveStatus } = useSettings();
   const { stats, refreshStats } = useStats();
   const { preference, resolvedTheme, setThemePreference } = useTheme();
-  const pagination = usePagination(currentFilter, currentSource);
+  const pagination = usePagination(currentFilter, machineFilter);
 
-  const availableProjects = useMemo(() => {
-    if (currentSource === 'all') {
-      return projects;
-    }
+  const federationMachines = stats?.federation?.machines || [];
 
-    return projectsBySource[currentSource] || [];
-  }, [currentSource, projects, projectsBySource]);
-
-  const matchesSelection = useCallback((item: { project: string; platform_source: string }) => {
-    const matchesProject = !currentFilter || item.project === currentFilter;
-    const matchesSource = currentSource === 'all' || (item.platform_source || 'claude') === currentSource;
-    return matchesProject && matchesSource;
-  }, [currentFilter, currentSource]);
-
-  useEffect(() => {
-    if (currentFilter && !availableProjects.includes(currentFilter)) {
-      setCurrentFilter('');
-    }
-  }, [availableProjects, currentFilter]);
-
-  // Merge SSE live data with paginated data, filtering by project when active
+  // Merge SSE live data with paginated data, filtering by project and search
   const allObservations = useMemo(() => {
-    const live = observations.filter(matchesSelection);
-    const paginated = paginatedObservations.filter(matchesSelection);
-    return mergeAndDeduplicateByProject(live, paginated);
-  }, [observations, paginatedObservations, matchesSelection]);
+    const live = currentFilter
+      ? observations.filter(o => o.project === currentFilter)
+      : observations;
+    let merged = mergeAndDeduplicateByProject(live, paginatedObservations);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      merged = merged.filter(o =>
+        (o.title && o.title.toLowerCase().includes(q)) ||
+        (o.subtitle && o.subtitle.toLowerCase().includes(q))
+      );
+    }
+    return merged;
+  }, [observations, paginatedObservations, currentFilter, searchQuery]);
 
   const allSummaries = useMemo(() => {
-    const live = summaries.filter(matchesSelection);
-    const paginated = paginatedSummaries.filter(matchesSelection);
-    return mergeAndDeduplicateByProject(live, paginated);
-  }, [summaries, paginatedSummaries, matchesSelection]);
+    const live = currentFilter
+      ? summaries.filter(s => s.project === currentFilter)
+      : summaries;
+    let merged = mergeAndDeduplicateByProject(live, paginatedSummaries);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      merged = merged.filter(s =>
+        (s.investigated && s.investigated.toLowerCase().includes(q)) ||
+        (s.learned && s.learned.toLowerCase().includes(q)) ||
+        (s.completed && s.completed.toLowerCase().includes(q))
+      );
+    }
+    return merged;
+  }, [summaries, paginatedSummaries, currentFilter, searchQuery]);
 
   const allPrompts = useMemo(() => {
-    const live = prompts.filter(matchesSelection);
-    const paginated = paginatedPrompts.filter(matchesSelection);
-    return mergeAndDeduplicateByProject(live, paginated);
-  }, [prompts, paginatedPrompts, matchesSelection]);
+    const live = currentFilter
+      ? prompts.filter(p => p.project === currentFilter)
+      : prompts;
+    return mergeAndDeduplicateByProject(live, paginatedPrompts);
+  }, [prompts, paginatedPrompts, currentFilter]);
 
-  // Toggle context preview modal
+  // Toggle modals
   const toggleContextPreview = useCallback(() => {
     setContextPreviewOpen(prev => !prev);
   }, []);
 
-  // Toggle logs modal
   const toggleLogsModal = useCallback(() => {
     setLogsModalOpen(prev => !prev);
+  }, []);
+
+  const toggleFederationModal = useCallback(() => {
+    setFederationModalOpen(prev => !prev);
+  }, []);
+
+  const handleFilterByProjectMachine = useCallback((project: string, machine: string) => {
+    setCurrentFilter(project);
+    setMachineFilter(machine);
+    setFederationModalOpen(false);
   }, []);
 
   // Handle loading more data
@@ -96,32 +111,39 @@ export function App() {
     } catch (error) {
       console.error('Failed to load more data:', error);
     }
-  }, [pagination.observations, pagination.summaries, pagination.prompts]);
+  }, [currentFilter, machineFilter, pagination.observations, pagination.summaries, pagination.prompts]);
 
-  // Reset paginated data and load first page when project/source changes
+  // Reset paginated data and load first page when filter changes
   useEffect(() => {
     setPaginatedObservations([]);
     setPaginatedSummaries([]);
     setPaginatedPrompts([]);
     handleLoadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilter, currentSource]);
+  }, [currentFilter, machineFilter]);
 
   return (
     <>
       <Header
         isConnected={isConnected}
-        projects={availableProjects}
-        sources={sources}
-        currentFilter={currentFilter}
-        currentSource={currentSource}
-        onFilterChange={setCurrentFilter}
-        onSourceChange={setCurrentSource}
         isProcessing={isProcessing}
         queueDepth={queueDepth}
         themePreference={preference}
         onThemeChange={setThemePreference}
         onContextPreviewToggle={toggleContextPreview}
+        federationMachineCount={federationMachines.length}
+        onFederationClick={toggleFederationModal}
+      />
+
+      <FilterBar
+        projects={projects}
+        projectFilter={currentFilter}
+        onProjectFilterChange={setCurrentFilter}
+        machineFilter={machineFilter}
+        onMachineFilterChange={setMachineFilter}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        machines={federationMachines}
       />
 
       <Feed
@@ -156,6 +178,12 @@ export function App() {
       <LogsDrawer
         isOpen={logsModalOpen}
         onClose={toggleLogsModal}
+      />
+
+      <FederationStatsModal
+        isOpen={federationModalOpen}
+        onClose={toggleFederationModal}
+        onFilterByProjectMachine={handleFilterByProjectMachine}
       />
     </>
   );

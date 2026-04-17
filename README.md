@@ -125,6 +125,64 @@
 
 ---
 
+## Fork Notice
+
+This is the **[tankbottoms](https://github.com/tankbottoms/claude-mem)** fork of [thedotmack/claude-mem](https://github.com/thedotmack/claude-mem), rebased on upstream **v11.0.0** with the following additions:
+
+### Federation (Multi-Machine Observation Sync)
+
+Bidirectional sync of observations between machines, with one machine designated as the master (source of truth). All other machines pull from and push to the master on a configurable schedule.
+
+- **Pull/push sync** -- observations, summaries, and sessions replicate between machines via HTTP endpoints (`/api/sync/export`, `/api/sync/import`, `/api/sync/status`, `/api/sync/identity`)
+- **`source_machine` tracking** -- every observation records which machine produced it (SQLite column + migration)
+- **Deferred ChromaDB indexing** -- imported observations queue for vector embedding via `ChromaSyncQueue` rather than blocking the import
+- **Setup wizard** -- interactive `scripts/federation-setup.sh` configures machine identity, remotes, and cron sync
+- **Cron-friendly sync script** -- `scripts/federation-sync.sh` for unattended pull/push cycles
+
+### Federation Viewer UI
+
+- **Machine badges** -- observations display their source machine with color-coded badges
+- **Federation stats modal** -- machine counts, last-seen timestamps, per-project machine breakdowns
+- **Machine filter** -- filter observations by source machine in the viewer and API (`?source_machine=`)
+- **HTTPS probe** -- federation links auto-upgrade to HTTPS when available
+
+### Terminal Display
+
+- **Font Awesome / Nerd Font icons** for observation types (not standard emojis)
+- **Compact layout** -- `#ID [glyph type] title file (time)` with inline date markers
+- **Nerd Font summary glyphs** -- Investigated, Learned, Completed, Next Steps fields use dedicated icons with word-wrap formatting
+
+### Upstream v11.0.0 Stability Fixes (Inherited)
+
+All upstream fixes are included in this fork:
+
+- Chroma spawn storm prevention (process supervisor with max-restart limits)
+- Zombie process cleanup and HNSW corruption handling
+- Schema auto-repair for cross-machine DB sync edge cases
+- FOREIGN KEY loop prevention in migrations
+- Content-hash deduplication for observations
+
+### Federation Machines
+
+| Machine | Role | Arch |
+|---------|------|------|
+| mepstudio | Master (source of truth, pushes to git) | arm64 |
+| spark-1 | GPU node, pull-only | aarch64 |
+| spark-2 | GPU node, pull-only | aarch64 |
+| mepmbp2022 | MacBook Pro 2022, pull-only | arm64 |
+| mepmbp2019 | MacBook Pro 2019, pull-only | x86_64 |
+
+### Syncing with Upstream
+
+```bash
+git fetch upstream
+git merge upstream/main
+# Resolve conflicts, preserving federation files and terminal display format
+npm run build-and-sync
+```
+
+---
+
 ## Quick Start
 
 Install with a single command:
@@ -137,11 +195,6 @@ Or install for Gemini CLI (auto-detects `~/.gemini`):
 
 ```bash
 npx claude-mem install --ide gemini-cli
-```
-Or install for OpenCode:
-
-```bash
-npx claude-mem install --ide opencode
 ```
 
 Or install from the plugin marketplace inside Claude Code:
@@ -305,45 +358,6 @@ Settings are managed in `~/.claude-mem/settings.json` (auto-created with default
 
 See the **[Configuration Guide](https://docs.claude-mem.ai/configuration)** for all available settings and examples.
 
-### Mode & Language Configuration
-
-Claude-Mem supports multiple workflow modes and languages via the `CLAUDE_MEM_MODE` setting.
-
-This option controls both:
-- The workflow behavior (e.g. code, chill, investigation)
-- The language used in generated observations
-
-#### How to Configure
-
-Edit your settings file at `~/.claude-mem/settings.json`:
-
-```json
-{
-  "CLAUDE_MEM_MODE": "code--zh"
-}
-```
-
-Modes are defined in `plugin/modes/`. To see all available modes locally:
-
-```bash
-ls ~/.claude/plugins/marketplaces/thedotmack/plugin/modes/
-```
-
-#### Available Modes
-
-| Mode | Description |
-|------------|-------------------------|
-| `code` | Default English mode |
-| `code--zh` | Simplified Chinese mode |
-| `code--ja` | Japanese mode |
-
-Language-specific modes follow the pattern `code--[lang]` where `[lang]` is the ISO 639-1 language code (e.g., `zh` for Chinese, `ja` for Japanese, `es` for Spanish).
-
-> Note: `code--zh` (Simplified Chinese) is already built-in — no additional installation or plugin update is required.
-
-#### After Changing Mode
-
-Restart Claude Code to apply the new mode configuration.
 ---
 
 ## Development

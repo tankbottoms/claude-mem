@@ -68,6 +68,22 @@ async function buildViewer() {
       );
     }
 
+    // Copy Font Awesome Pro Thin assets
+    const faSourceDir = path.join(rootDir, 'plugin/ui/assets/fa');
+    const faOutputDir = path.join(outputUiDir, 'assets/fa');
+    if (fs.existsSync(faSourceDir)) {
+      fs.mkdirSync(path.join(faOutputDir, 'webfonts'), { recursive: true });
+      for (const file of fs.readdirSync(faSourceDir).filter(f => f.endsWith('.css'))) {
+        fs.copyFileSync(path.join(faSourceDir, file), path.join(faOutputDir, file));
+      }
+      const faWebfontsDir = path.join(faSourceDir, 'webfonts');
+      if (fs.existsSync(faWebfontsDir)) {
+        for (const file of fs.readdirSync(faWebfontsDir)) {
+          fs.copyFileSync(path.join(faWebfontsDir, file), path.join(faOutputDir, 'webfonts', file));
+        }
+      }
+    }
+
     console.log('✓ React viewer built successfully');
     console.log('  - plugin/ui/viewer-bundle.js');
     console.log('  - plugin/ui/viewer.html (from viewer-template.html)');

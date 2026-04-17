@@ -6,76 +6,40 @@ import { useSpinningFavicon } from '../hooks/useSpinningFavicon';
 
 interface HeaderProps {
   isConnected: boolean;
-  projects: string[];
-  sources: string[];
-  currentFilter: string;
-  currentSource: string;
-  onFilterChange: (filter: string) => void;
-  onSourceChange: (source: string) => void;
   isProcessing: boolean;
   queueDepth: number;
   themePreference: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
   onContextPreviewToggle: () => void;
-}
-
-function formatSourceLabel(source: string): string {
-  if (source === 'all') return 'All';
-  if (source === 'claude') return 'Claude';
-  if (source === 'codex') return 'Codex';
-  return source.charAt(0).toUpperCase() + source.slice(1);
-}
-
-function buildSourceTabs(sources: string[]): string[] {
-  const merged = ['all', 'claude', 'codex', ...sources];
-  return Array.from(new Set(merged.filter(Boolean)));
+  federationMachineCount: number;
+  onFederationClick: () => void;
 }
 
 export function Header({
   isConnected,
-  projects,
-  sources,
-  currentFilter,
-  currentSource,
-  onFilterChange,
-  onSourceChange,
   isProcessing,
   queueDepth,
   themePreference,
   onThemeChange,
-  onContextPreviewToggle
+  onContextPreviewToggle,
+  federationMachineCount,
+  onFederationClick
 }: HeaderProps) {
   useSpinningFavicon(isProcessing);
-  const availableSources = buildSourceTabs(sources);
 
   return (
     <div className="header">
-      <div className="header-main">
-        <h1>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <img src="claude-mem-logomark.webp" alt="" className={`logomark ${isProcessing ? 'spinning' : ''}`} />
-            {queueDepth > 0 && (
-              <div className="queue-bubble">
-                {queueDepth}
-              </div>
-            )}
-          </div>
-          <span className="logo-text">claude-mem</span>
-        </h1>
-        <div className="source-tabs" role="tablist" aria-label="Context source tabs">
-          {availableSources.map(source => (
-            <button
-              key={source}
-              type="button"
-              className={`source-tab ${currentSource === source ? 'active' : ''}`}
-              onClick={() => onSourceChange(source)}
-              aria-pressed={currentSource === source}
-            >
-              {formatSourceLabel(source)}
-            </button>
-          ))}
+      <h1>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <img src="claude-mem-logomark.webp" alt="" className={`logomark ${isProcessing ? 'spinning' : ''}`} />
+          {queueDepth > 0 && (
+            <div className="queue-bubble">
+              {queueDepth}
+            </div>
+          )}
         </div>
-      </div>
+        <span className="logo-text">claude-mem</span>
+      </h1>
       <div className="status">
         <a
           href="https://docs.claude-mem.ai"
@@ -112,15 +76,16 @@ export function Header({
           </svg>
         </a>
         <GitHubStarsButton username="thedotmack" repo="claude-mem" />
-        <select
-          value={currentFilter}
-          onChange={e => onFilterChange(e.target.value)}
-        >
-          <option value="">All Projects</option>
-          {projects.map(project => (
-            <option key={project} value={project}>{project}</option>
-          ))}
-        </select>
+        {federationMachineCount > 0 && (
+          <button
+            className="federation-badge-btn"
+            onClick={onFederationClick}
+            title="Federation"
+          >
+            <i className="fat fa-project-diagram"></i>
+            <span className="federation-count">{federationMachineCount}</span>
+          </button>
+        )}
         <ThemeToggle
           preference={themePreference}
           onThemeChange={onThemeChange}

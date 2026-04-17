@@ -11,6 +11,7 @@
 
 import express, { Request, Response, Application } from 'express';
 import http from 'http';
+import https from 'https';
 import * as fs from 'fs';
 import path from 'path';
 import { ALLOWED_OPERATIONS, ALLOWED_TOPICS } from './allowed-constants.js';
@@ -72,6 +73,7 @@ export interface ServerOptions {
 export class Server {
   readonly app: Application;
   private server: http.Server | null = null;
+  private httpsServer: https.Server | null = null;
   private readonly options: ServerOptions;
   private readonly startTime: number = Date.now();
 
@@ -103,9 +105,53 @@ export class Server {
   }
 
   /**
-   * Close the HTTP server
+   * Start HTTPS server on a separate port, sharing the same Express app.
+   * Uses Tailscale-provisioned certs or user-provided cert/key files.
+   */
+  async listenHttps(port: number, host: string, certPath: string, keyPath: string): Promise<void> {
+    if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+      logger.warn('SYSTEM', 'HTTPS cert/key not found, skipping HTTPS', { certPath, keyPath });
+      return;
+    }
+
+    const cert = fs.readFileSync(certPath);
+    const key = fs.readFileSync(keyPath);
+
+    return new Promise<void>((resolve, reject) => {
+      this.httpsServer = https.createServer({ cert, key }, this.app);
+      this.httpsServer.listen(port, host, () => {
+        logger.info('SYSTEM', 'HTTPS server started', { host, port, pid: process.pid });
+        resolve();
+      });
+      this.httpsServer.on('error', (err) => {
+        logger.warn('SYSTEM', 'HTTPS server failed to start', { error: (err as Error).message });
+        this.httpsServer = null;
+        resolve(); // Non-fatal — HTTP still works
+      });
+    });
+  }
+
+  /**
+   * Get the underlying HTTPS server
+   */
+  getHttpsServer(): https.Server | null {
+    return this.httpsServer;
+  }
+
+  /**
+   * Close the HTTP and HTTPS servers
    */
   async close(): Promise<void> {
+    // Close HTTPS server first if present
+    if (this.httpsServer) {
+      this.httpsServer.closeAllConnections();
+      await new Promise<void>((resolve) => {
+        this.httpsServer!.close(() => resolve());
+      });
+      this.httpsServer = null;
+      logger.info('SYSTEM', 'HTTPS server closed');
+    }
+
     if (!this.server) return;
 
     // Close all active connections

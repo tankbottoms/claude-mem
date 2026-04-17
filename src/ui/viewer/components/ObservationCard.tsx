@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Observation } from '../types';
 import { formatDate } from '../utils/formatters';
+import { getMachineColor } from '../utils/machines';
 
 interface ObservationCardProps {
   observation: Observation;
@@ -51,9 +52,6 @@ export function ObservationCard({ observation }: ObservationCardProps) {
         <div className="card-header-left">
           <span className={`card-type type-${observation.type}`}>
             {observation.type}
-          </span>
-          <span className={`card-source source-${observation.platform_source || 'claude'}`}>
-            {observation.platform_source || 'claude'}
           </span>
           <span className="card-project">{observation.project}</span>
         </div>
@@ -118,6 +116,21 @@ export function ObservationCard({ observation }: ObservationCardProps) {
       {/* Metadata footer - id, date, and conditionally concepts/files when facts toggle is on */}
       <div className="card-meta">
         <span className="meta-date">#{observation.id} • {date}</span>
+        {observation.source_machine && (() => {
+          const mc = getMachineColor(observation.source_machine);
+          return (
+            <span
+              className="machine-source-badge"
+              style={{
+                background: mc.bg,
+                color: mc.text,
+                borderColor: mc.border,
+              }}
+            >
+              <i className="fat fa-server"></i> {observation.source_machine}
+            </span>
+          );
+        })()}
         {showFacts && (concepts.length > 0 || filesRead.length > 0 || filesModified.length > 0) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
             {concepts.map((concept: string, i: number) => (

@@ -10,7 +10,7 @@ import { homedir } from 'os';
 import { unlinkSync } from 'fs';
 import { SessionStore } from '../sqlite/SessionStore.js';
 import { logger } from '../../utils/logger.js';
-import { getProjectContext } from '../../utils/project-name.js';
+import { getProjectName } from '../../utils/project-name.js';
 
 import type { ContextInput, ContextConfig, Observation, SessionSummary } from './types.js';
 import { loadContextConfig } from './ContextConfigLoader.js';
@@ -29,8 +29,8 @@ import { renderHeader } from './sections/HeaderRenderer.js';
 import { renderTimeline } from './sections/TimelineRenderer.js';
 import { shouldShowSummary, renderSummaryFields } from './sections/SummaryRenderer.js';
 import { renderPreviouslySection, renderFooter } from './sections/FooterRenderer.js';
-import { renderAgentEmptyState } from './formatters/AgentFormatter.js';
-import { renderHumanEmptyState } from './formatters/HumanFormatter.js';
+import { renderMarkdownEmptyState } from './formatters/MarkdownFormatter.js';
+import { renderColorEmptyState } from './formatters/ColorFormatter.js';
 
 // Version marker path for native module error handling
 const VERSION_MARKER_PATH = path.join(
@@ -66,8 +66,8 @@ function initializeDatabase(): SessionStore | null {
 /**
  * Render empty state when no data exists
  */
-function renderEmptyState(project: string, forHuman: boolean): string {
-  return forHuman ? renderHumanEmptyState(project) : renderAgentEmptyState(project);
+function renderEmptyState(project: string, useColors: boolean): string {
+  return useColors ? renderColorEmptyState(project) : renderMarkdownEmptyState(project);
 }
 
 /**
@@ -80,7 +80,7 @@ function buildContextOutput(
   config: ContextConfig,
   cwd: string,
   sessionId: string | undefined,
-  forHuman: boolean
+  useColors: boolean
 ): string {
   const output: string[] = [];
 
@@ -88,7 +88,7 @@ function buildContextOutput(
   const economics = calculateTokenEconomics(observations);
 
   // Render header section
-  output.push(...renderHeader(project, economics, config, forHuman));
+  output.push(...renderHeader(project, economics, config, useColors));
 
   // Prepare timeline data
   const displaySummaries = summaries.slice(0, config.sessionCount);
@@ -97,22 +97,22 @@ function buildContextOutput(
   const fullObservationIds = getFullObservationIds(observations, config.fullObservationCount);
 
   // Render timeline
-  output.push(...renderTimeline(timeline, fullObservationIds, config, cwd, forHuman));
+  output.push(...renderTimeline(timeline, fullObservationIds, config, cwd, useColors));
 
   // Render most recent summary if applicable
   const mostRecentSummary = summaries[0];
   const mostRecentObservation = observations[0];
 
   if (shouldShowSummary(config, mostRecentSummary, mostRecentObservation)) {
-    output.push(...renderSummaryFields(mostRecentSummary, forHuman));
+    output.push(...renderSummaryFields(mostRecentSummary, useColors));
   }
 
   // Render previously section (prior assistant message)
   const priorMessages = getPriorSessionMessages(observations, config, sessionId, cwd);
-  output.push(...renderPreviouslySection(priorMessages, forHuman));
+  output.push(...renderPreviouslySection(priorMessages, useColors));
 
   // Render footer
-  output.push(...renderFooter(economics, config, forHuman));
+  output.push(...renderFooter(economics, config, useColors));
 
   return output.join('\n').trimEnd();
 }
@@ -125,16 +125,14 @@ function buildContextOutput(
  */
 export async function generateContext(
   input?: ContextInput,
-  forHuman: boolean = false
+  useColors: boolean = false
 ): Promise<string> {
   const config = loadContextConfig();
   const cwd = input?.cwd ?? process.cwd();
-  const context = getProjectContext(cwd);
-  const project = context.primary;
-  const platformSource = input?.platform_source;
+  const project = getProjectName(cwd);
 
-  // Use provided projects array (for worktree support) or fall back to all known projects
-  const projects = input?.projects ?? context.allProjects;
+  // Use provided projects array (for worktree support) or fall back to single project
+  const projects = input?.projects || [project];
 
   // Full mode: fetch all observations but keep normal rendering (level 1 summaries)
   if (input?.full) {
@@ -151,15 +149,15 @@ export async function generateContext(
   try {
     // Query data for all projects (supports worktree: parent + worktree combined)
     const observations = projects.length > 1
-      ? queryObservationsMulti(db, projects, config, platformSource)
-      : queryObservations(db, project, config, platformSource);
+      ? queryObservationsMulti(db, projects, config)
+      : queryObservations(db, project, config);
     const summaries = projects.length > 1
-      ? querySummariesMulti(db, projects, config, platformSource)
-      : querySummaries(db, project, config, platformSource);
+      ? querySummariesMulti(db, projects, config)
+      : querySummaries(db, project, config);
 
     // Handle empty state
     if (observations.length === 0 && summaries.length === 0) {
-      return renderEmptyState(project, forHuman);
+      return renderEmptyState(project, useColors);
     }
 
     // Build and return context
@@ -170,7 +168,7 @@ export async function generateContext(
       config,
       cwd,
       input?.session_id,
-      forHuman
+      useColors
     );
 
     return output;
