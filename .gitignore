@@ -38,3 +38,5 @@ src/ui/viewer.html
 
 # Local contribution analysis (not part of upstream)
 CONTRIB_NOTES.md
+# Federation local config — never commit
+src/ui/viewer/utils/machines.ts
