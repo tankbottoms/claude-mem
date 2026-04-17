@@ -53,6 +53,25 @@ export function getMachineIp(machine: string): string | undefined {
   return MACHINE_IPS[machine] || MACHINE_IPS[machine.replace(/\.local$/, '')];
 }
 
+/**
+ * Probe whether a federated machine has a reachable HTTPS worker endpoint.
+ * Returns the HTTPS URL on success, or null on failure/timeout.
+ * Override in your local machines.ts if your tailnet exposes different ports.
+ */
+export async function probeHttps(machine: string): Promise<string | null> {
+  const url = getMagicDnsUrl(machine);
+  if (!url.startsWith('https://')) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 2500);
+    const res = await fetch(`${url}/health`, { signal: ctrl.signal });
+    clearTimeout(t);
+    return res.ok ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 /** FA icon and color for each observation type */
 export const TYPE_ICONS: Record<string, { icon: string; color: string }> = {
   bugfix:    { icon: 'fat fa-bug', color: '#f85149' },
