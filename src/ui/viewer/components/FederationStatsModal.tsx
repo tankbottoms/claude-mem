@@ -99,7 +99,7 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
         {/* Header */}
         <div className="fed-stats-header">
           <div className="fed-stats-title">
-            <i className="fas fa-project-diagram" style={{ marginRight: '8px', color: 'var(--color-accent-primary)' }}></i>
+            <i className="fat fa-project-diagram" style={{ marginRight: '8px', color: 'var(--color-accent-primary)' }}></i>
             Federation
           </div>
           <button onClick={onClose} className="modal-close-btn" title="Close (Esc)">
@@ -116,44 +116,44 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
           <div className="fed-stats-body">
             {/* Overview badges - two rows with pastel colors */}
             <div className="fed-stats-badges">
-              <span className="fed-badge" title="Total observations across all federated machines" style={{ background: 'rgba(96, 165, 250, 0.15)', borderColor: 'rgba(96, 165, 250, 0.3)', color: '#60a5fa' }}>
-                <i className="fas fa-eye" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Total observations across all federated machines">
+                <i className="fat fa-eye"></i>
                 {totalObs.toLocaleString()} obs
               </span>
-              <span className="fed-badge" title="Number of machines in the federation" style={{ background: 'rgba(74, 222, 128, 0.15)', borderColor: 'rgba(74, 222, 128, 0.3)', color: '#4ade80' }}>
-                <i className="fas fa-server" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Number of machines in the federation">
+                <i className="fat fa-server"></i>
                 {machines.length} machines
               </span>
-              <span className="fed-badge" title="Distinct projects tracked" style={{ background: 'rgba(251, 191, 36, 0.15)', borderColor: 'rgba(251, 191, 36, 0.3)', color: '#fbbf24' }}>
-                <i className="fas fa-folder-open" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Distinct projects tracked">
+                <i className="fat fa-folder-open"></i>
                 {projectCount} projects
               </span>
-              <span className="fed-badge" title="Total Claude Code sessions recorded" style={{ background: 'rgba(192, 132, 252, 0.15)', borderColor: 'rgba(192, 132, 252, 0.3)', color: '#c084fc' }}>
-                <i className="fas fa-link" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Total Claude Code sessions recorded">
+                <i className="fat fa-link"></i>
                 {stats?.database?.sessions?.toLocaleString() || '0'} sessions
               </span>
-              <span className="fed-badge" title="AI-generated session summaries" style={{ background: 'rgba(251, 146, 60, 0.15)', borderColor: 'rgba(251, 146, 60, 0.3)', color: '#fb923c' }}>
-                <i className="fas fa-compress-alt" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="AI-generated session summaries">
+                <i className="fat fa-compress-alt"></i>
                 {stats?.database?.summaries?.toLocaleString() || '0'} summaries
               </span>
-              <span className="fed-badge" title="Federation sync operations" style={{ background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}>
-                <i className="fas fa-sync-alt" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Federation sync operations">
+                <i className="fat fa-sync-alt"></i>
                 {syncCount.toLocaleString()} syncs
               </span>
-              <span className="fed-badge" title="Average characters per observation" style={{ background: 'rgba(248, 113, 113, 0.15)', borderColor: 'rgba(248, 113, 113, 0.3)', color: '#f87171' }}>
-                <i className="fas fa-text-width" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Average characters per observation">
+                <i className="fat fa-text-width"></i>
                 {avgChars.toLocaleString()} avg chars
               </span>
-              <span className="fed-badge" title="Average discovery tokens per observation" style={{ background: 'rgba(45, 212, 191, 0.15)', borderColor: 'rgba(45, 212, 191, 0.3)', color: '#2dd4bf' }}>
-                <i className="fas fa-coins" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Average discovery tokens per observation">
+                <i className="fat fa-coins"></i>
                 {avgTokens.toLocaleString()} avg tokens
               </span>
-              <span className="fed-badge" title="Worker process uptime since last restart" style={{ background: 'rgba(167, 139, 250, 0.15)', borderColor: 'rgba(167, 139, 250, 0.3)', color: '#a78bfa' }}>
-                <i className="fas fa-clock" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="Worker process uptime since last restart">
+                <i className="fat fa-clock"></i>
                 {formatUptime(stats?.worker?.uptime || 0)}
               </span>
-              <span className="fed-badge" title="SQLite database file size on disk" style={{ background: 'rgba(156, 163, 175, 0.15)', borderColor: 'rgba(156, 163, 175, 0.3)', color: '#9ca3af' }}>
-                <i className="fas fa-database" style={{ marginRight: '5px', opacity: 0.7 }}></i>
+              <span className="fed-badge" title="SQLite database file size on disk">
+                <i className="fat fa-database"></i>
                 {formatBytes(stats?.database?.size || 0)}
               </span>
             </div>
@@ -161,7 +161,7 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
             {/* Machines section */}
             <div className="fed-section">
               <h3 className="fed-section-title">
-                <i className="fas fa-server" style={{ marginRight: '6px' }}></i>
+                <i className="fat fa-server" style={{ marginRight: '6px' }}></i>
                 Machines
               </h3>
               <div className="fed-machines-grid">
@@ -189,14 +189,14 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
                           style={{ background: color.bg, color: color.text, borderColor: color.border }}
                         >
                           {isLocal ? (
-                            <i className="fas fa-star" style={{ marginRight: '4px', fontSize: '0.7rem', color: '#d29922' }}></i>
+                            <i className="fat fa-star" style={{ marginRight: '4px', fontSize: '0.7rem', color: '#d29922' }}></i>
                           ) : (
-                            <i className="fas fa-satellite-dish" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>
+                            <i className="fat fa-satellite-dish" style={{ marginRight: '4px', fontSize: '0.7rem' }}></i>
                           )}
                           {m.machine}
                         </span>
                         {isHttps && (
-                          <i className="fas fa-lock" style={{ fontSize: '0.6rem', color: '#4ade80', marginLeft: '4px' }} title="HTTPS available"></i>
+                          <i className="fat fa-lock" style={{ fontSize: '0.6rem', color: '#4ade80', marginLeft: '4px' }} title="HTTPS available"></i>
                         )}
                       </div>
                       <div className="fed-machine-card-stats">
@@ -215,7 +215,7 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
             {/* Projects x Machines */}
             <div className="fed-section">
               <h3 className="fed-section-title">
-                <i className="fas fa-folder-open" style={{ marginRight: '6px' }}></i>
+                <i className="fat fa-folder-open" style={{ marginRight: '6px' }}></i>
                 Projects by Machine
               </h3>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>

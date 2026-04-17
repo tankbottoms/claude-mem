@@ -55,10 +55,10 @@ export function getMachineIp(machine: string): string | undefined {
 
 /** FA icon and color for each observation type */
 export const TYPE_ICONS: Record<string, { icon: string; color: string }> = {
-  bugfix:    { icon: 'fas fa-bug', color: '#f85149' },
-  feature:   { icon: 'fas fa-star', color: '#3fb950' },
-  change:    { icon: 'fas fa-code-branch', color: '#58a6ff' },
-  discovery: { icon: 'fas fa-search', color: '#58a6ff' },
-  refactor:  { icon: 'fas fa-recycle', color: '#d2a8ff' },
-  decision:  { icon: 'fas fa-balance-scale', color: '#d29922' },
+  bugfix:    { icon: 'fat fa-bug', color: '#f85149' },
+  feature:   { icon: 'fat fa-star', color: '#3fb950' },
+  change:    { icon: 'fat fa-code-branch', color: '#58a6ff' },
+  discovery: { icon: 'fat fa-search', color: '#58a6ff' },
+  refactor:  { icon: 'fat fa-recycle', color: '#d2a8ff' },
+  decision:  { icon: 'fat fa-balance-scale', color: '#d29922' },
 };

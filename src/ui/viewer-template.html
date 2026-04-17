@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>claude-mem viewer</title>
   <link rel="icon" type="image/webp" href="claude-mem-logomark.webp">
+  <link rel="stylesheet" href="assets/fa/fontawesome.min.css">
+  <link rel="stylesheet" href="assets/fa/thin.min.css">
   <style>
     @font-face {
       font-family: 'Monaspace Radon';
@@ -813,7 +815,8 @@
     }
 
     .feed-content {
-      max-width: 650px;
+      max-width: 900px;
+      width: 100%;
     }
 
     .card {
@@ -2864,6 +2867,465 @@
       .toggle-switch.on .toggle-knob {
         transform: translateX(16px);
       }
+    }
+
+    /* ===== Federation UI (matched to spark-2 reference) ===== */
+
+    .filter-bar {
+      border-bottom: 1px solid var(--color-border-primary);
+      background: var(--color-bg-primary);
+      padding: 10px 10%;
+      display: flex;
+      justify-content: center;
+    }
+    .filter-bar-inner {
+      max-width: 900px;
+      width: 100%;
+    }
+    .filter-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .filter-row:last-child {
+      margin-bottom: 0;
+    }
+    .filter-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      font-family: var(--font-terminal);
+      white-space: nowrap;
+      min-width: 100px;
+      padding-top: 5px;
+    }
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      flex: 1;
+    }
+    .filter-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 3px;
+      border: 1px solid var(--color-border-primary);
+      background: var(--color-bg-card);
+      color: var(--color-text-secondary);
+      font-family: var(--font-terminal);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      height: 26px;
+    }
+    .filter-pill:hover {
+      border-color: var(--color-border-focus);
+      color: var(--color-text-primary);
+      background: var(--color-bg-card-hover);
+    }
+    .filter-pill.active {
+      background: var(--color-accent-primary);
+      border-color: var(--color-accent-primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .filter-pill.pinned:not(.active) {
+      border-color: var(--color-accent-primary);
+      border-style: dashed;
+    }
+    .machine-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 3px;
+      border: 1px solid var(--color-border-primary);
+      background: var(--color-bg-card);
+      font-family: var(--font-terminal);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      height: 26px;
+    }
+    .machine-chip:hover {
+      filter: brightness(1.2);
+    }
+    .machine-chip.active {
+      font-weight: 600;
+    }
+
+    /* Search input in filter bar */
+    .filter-search-input {
+      padding: 4px 10px 4px 28px;
+      border-radius: 3px;
+      border: 1px solid var(--color-border-primary);
+      background: var(--color-bg-card);
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      font-size: 0.75rem;
+      height: 26px;
+      width: 100%;
+      outline: none;
+      transition: all 0.15s;
+    }
+    .filter-search-input:focus {
+      border-color: var(--color-border-focus);
+      box-shadow: var(--shadow-focus);
+    }
+    .filter-search-input::placeholder {
+      color: var(--color-text-muted);
+    }
+    .filter-search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    .filter-search-wrapper .search-icon {
+      position: absolute;
+      left: 8px;
+      color: var(--color-text-muted);
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    /* Federation badge button */
+    .federation-badge-btn {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 4px;
+      padding: 0 10px;
+      height: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--color-text-secondary);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      font-family: var(--font-terminal);
+      font-size: 12px;
+    }
+    .federation-badge-btn:hover {
+      background: var(--color-bg-card-hover);
+      border-color: var(--color-border-focus);
+      color: var(--color-accent-primary);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+    .federation-count {
+      background: var(--color-accent-primary);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      min-width: 16px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* Machine source badge (used on all cards) */
+    .machine-source-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--color-type-badge-bg);
+      color: var(--color-type-badge-text);
+      border: 1px solid transparent;
+      font-family: monospace;
+      cursor: pointer;
+      font-weight: 500;
+      height: 22px;
+      line-height: 1;
+    }
+    .machine-source-badge:hover {
+      filter: brightness(1.2);
+    }
+
+    /* Machine badge wrapper with hover popup */
+    .machine-badge-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      margin-left: 4px;
+    }
+    .related-machines-popup {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 50;
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 4px;
+      padding: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      min-width: 140px;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .machine-badge-wrapper:hover .related-machines-popup {
+      display: flex;
+    }
+    .related-machines-label {
+      font-size: 0.65rem;
+      color: var(--color-text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+    .related-machine-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      font-family: monospace;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .related-machine-badge:hover {
+      filter: brightness(1.3);
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+
+    /* Federation Stats Modal */
+    .federation-stats-modal {
+      background: var(--color-bg-primary);
+      border: 1px solid var(--color-border-primary);
+      border-radius: 4px;
+      width: min(900px, 94vw);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .fed-stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-border-primary);
+      background: var(--color-bg-header);
+    }
+    .fed-stats-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      letter-spacing: -0.02em;
+    }
+    .modal-close-btn {
+      background: none;
+      border: none;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .modal-close-btn:hover {
+      background: var(--color-bg-tertiary);
+      color: var(--color-text-primary);
+    }
+    .fed-stats-body {
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Federation overview badges strip */
+    .fed-stats-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .fed-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+      height: 24px;
+    }
+    .fed-badge i {
+      margin-right: 5px;
+      opacity: 0.7;
+    }
+    /* Rainbow spectrum for stat badges */
+    .fed-stats-badges .fed-badge:nth-child(1)  { background: rgba(248, 113, 113, 0.15); border-color: rgba(248, 113, 113, 0.3); color: #f87171; }
+    .fed-stats-badges .fed-badge:nth-child(2)  { background: rgba(251, 146, 60, 0.15);  border-color: rgba(251, 146, 60, 0.3);  color: #fb923c; }
+    .fed-stats-badges .fed-badge:nth-child(3)  { background: rgba(251, 191, 36, 0.15);  border-color: rgba(251, 191, 36, 0.3);  color: #fbbf24; }
+    .fed-stats-badges .fed-badge:nth-child(4)  { background: rgba(74, 222, 128, 0.15);  border-color: rgba(74, 222, 128, 0.3);  color: #4ade80; }
+    .fed-stats-badges .fed-badge:nth-child(5)  { background: rgba(45, 212, 191, 0.15);  border-color: rgba(45, 212, 191, 0.3);  color: #2dd4bf; }
+    .fed-stats-badges .fed-badge:nth-child(6)  { background: rgba(56, 189, 248, 0.15);  border-color: rgba(56, 189, 248, 0.3);  color: #38bdf8; }
+    .fed-stats-badges .fed-badge:nth-child(7)  { background: rgba(96, 165, 250, 0.15);  border-color: rgba(96, 165, 250, 0.3);  color: #60a5fa; }
+    .fed-stats-badges .fed-badge:nth-child(8)  { background: rgba(129, 140, 248, 0.15); border-color: rgba(129, 140, 248, 0.3); color: #818cf8; }
+    .fed-stats-badges .fed-badge:nth-child(9)  { background: rgba(167, 139, 250, 0.15); border-color: rgba(167, 139, 250, 0.3); color: #a78bfa; }
+    .fed-stats-badges .fed-badge:nth-child(10) { background: rgba(192, 132, 252, 0.15); border-color: rgba(192, 132, 252, 0.3); color: #c084fc; }
+
+    /* Machine cards grid */
+    .fed-machines-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .fed-machine-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      border-radius: 4px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-primary);
+      text-decoration: none;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    .fed-machine-card:hover {
+      background: var(--color-bg-card-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .fed-machine-card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fed-machine-name-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      font-family: monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      height: 24px;
+    }
+    .fed-local-tag {
+      font-size: 0.6rem;
+      color: var(--color-text-secondary);
+    }
+    .fed-machine-card-stats {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+    }
+    .fed-machine-count {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      font-family: var(--font-terminal);
+    }
+    .fed-machine-pct {
+      font-size: 0.7rem;
+      color: var(--color-text-secondary);
+    }
+    .fed-machine-card-meta {
+      font-size: 0.65rem;
+      color: var(--color-text-secondary);
+      text-align: center;
+    }
+
+    .fed-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .fed-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      font-family: var(--font-terminal);
+      margin: 0;
+      display: flex;
+      align-items: center;
+    }
+    .fed-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      font-family: var(--font-terminal);
+    }
+    .fed-table th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--color-border-primary);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .fed-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--color-border-secondary, rgba(128,128,128,0.1));
+      color: var(--color-text-primary);
+    }
+    .fed-table tr:hover td {
+      background: var(--color-bg-card-hover);
+    }
+    .fed-machine-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--color-type-badge-bg);
+      color: var(--color-type-badge-text);
+      font-family: monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .fed-project-machine-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      font-family: monospace;
+      font-weight: 500;
+      height: 24px;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .fed-project-machine-badge:hover {
+      filter: brightness(1.3);
     }
   </style>
 </head>

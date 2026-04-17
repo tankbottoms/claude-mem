@@ -25,6 +25,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_GEMINI_RATE_LIMITING_ENABLED: string;  // 'true' | 'false' - enable rate limiting for free tier
   CLAUDE_MEM_OPENROUTER_API_KEY: string;
   CLAUDE_MEM_OPENROUTER_MODEL: string;
+  CLAUDE_MEM_OPENROUTER_API_BASE: string;  // Custom API base URL (for LiteLLM or other proxies)
   CLAUDE_MEM_OPENROUTER_SITE_URL: string;
   CLAUDE_MEM_OPENROUTER_APP_NAME: string;
   CLAUDE_MEM_OPENROUTER_MAX_CONTEXT_MESSAGES: string;
@@ -61,6 +62,9 @@ export interface SettingsDefaults {
   CLAUDE_MEM_TIER_ROUTING_ENABLED: string;   // 'true' | 'false' - enable model tier routing
   CLAUDE_MEM_TIER_SIMPLE_MODEL: string;      // Tier alias or model ID for simple tool observations (Read, Glob, Grep)
   CLAUDE_MEM_TIER_SUMMARY_MODEL: string;     // Tier alias or model ID for session summaries
+  // HTTPS Configuration
+  CLAUDE_MEM_HTTPS_ENABLED: string;  // 'true' | 'false' - enable HTTPS server on separate port
+  CLAUDE_MEM_HTTPS_PORT: string;     // Port for HTTPS server (default: 37778)
   // Chroma Vector Database Configuration
   CLAUDE_MEM_CHROMA_ENABLED: string;   // 'true' | 'false' - set to 'false' for SQLite-only mode
   CLAUDE_MEM_CHROMA_MODE: string;      // 'local' | 'remote'
@@ -91,6 +95,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_GEMINI_RATE_LIMITING_ENABLED: 'true',  // Rate limiting ON by default for free tier users
     CLAUDE_MEM_OPENROUTER_API_KEY: '',  // Empty by default, can be set via UI or env
     CLAUDE_MEM_OPENROUTER_MODEL: 'xiaomi/mimo-v2-flash:free',  // Default OpenRouter model (free tier)
+    CLAUDE_MEM_OPENROUTER_API_BASE: '',  // Empty = use default OpenRouter API; set to LiteLLM URL for local proxy
     CLAUDE_MEM_OPENROUTER_SITE_URL: '',  // Optional: for OpenRouter analytics
     CLAUDE_MEM_OPENROUTER_APP_NAME: 'claude-mem',  // App name for OpenRouter analytics
     CLAUDE_MEM_OPENROUTER_MAX_CONTEXT_MESSAGES: '20',  // Max messages in context window
@@ -127,6 +132,9 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_TIER_ROUTING_ENABLED: 'true',         // Route observations to models by complexity
     CLAUDE_MEM_TIER_SIMPLE_MODEL: 'haiku', // Portable tier alias — works across Direct API, Bedrock, Vertex, Azure (see #1463)
     CLAUDE_MEM_TIER_SUMMARY_MODEL: '',                // Empty = use default model for summaries
+    // HTTPS Configuration
+    CLAUDE_MEM_HTTPS_ENABLED: 'false',         // Enable HTTPS server on separate port (uses Tailscale or user certs)
+    CLAUDE_MEM_HTTPS_PORT: '37778',            // HTTPS server port
     // Chroma Vector Database Configuration
     CLAUDE_MEM_CHROMA_ENABLED: 'true',         // Set to 'false' to disable Chroma and use SQLite-only search
     CLAUDE_MEM_CHROMA_MODE: 'local',           // 'local' uses persistent chroma-mcp via uvx, 'remote' connects to existing server

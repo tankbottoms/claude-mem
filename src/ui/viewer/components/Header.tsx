@@ -6,26 +6,24 @@ import { useSpinningFavicon } from '../hooks/useSpinningFavicon';
 
 interface HeaderProps {
   isConnected: boolean;
-  projects: string[];
-  currentFilter: string;
-  onFilterChange: (filter: string) => void;
   isProcessing: boolean;
   queueDepth: number;
   themePreference: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
   onContextPreviewToggle: () => void;
+  federationMachineCount: number;
+  onFederationClick: () => void;
 }
 
 export function Header({
   isConnected,
-  projects,
-  currentFilter,
-  onFilterChange,
   isProcessing,
   queueDepth,
   themePreference,
   onThemeChange,
-  onContextPreviewToggle
+  onContextPreviewToggle,
+  federationMachineCount,
+  onFederationClick
 }: HeaderProps) {
   useSpinningFavicon(isProcessing);
 
@@ -78,15 +76,16 @@ export function Header({
           </svg>
         </a>
         <GitHubStarsButton username="thedotmack" repo="claude-mem" />
-        <select
-          value={currentFilter}
-          onChange={e => onFilterChange(e.target.value)}
-        >
-          <option value="">All Projects</option>
-          {projects.map(project => (
-            <option key={project} value={project}>{project}</option>
-          ))}
-        </select>
+        {federationMachineCount > 0 && (
+          <button
+            className="federation-badge-btn"
+            onClick={onFederationClick}
+            title="Federation"
+          >
+            <i className="fat fa-project-diagram"></i>
+            <span className="federation-count">{federationMachineCount}</span>
+          </button>
+        )}
         <ThemeToggle
           preference={themePreference}
           onThemeChange={onThemeChange}

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
+import { FilterBar } from './components/FilterBar';
 import { Feed } from './components/Feed';
 import { ContextSettingsModal } from './components/ContextSettingsModal';
 import { LogsDrawer } from './components/LogsModal';
+import { FederationStatsModal } from './components/FederationStatsModal';
 import { useSSE } from './hooks/useSSE';
 import { useSettings } from './hooks/useSettings';
 import { useStats } from './hooks/useStats';
@@ -15,6 +17,9 @@ export function App() {
   const [currentFilter, setCurrentFilter] = useState('');
   const [contextPreviewOpen, setContextPreviewOpen] = useState(false);
   const [logsModalOpen, setLogsModalOpen] = useState(false);
+  const [federationModalOpen, setFederationModalOpen] = useState(false);
+  const [machineFilter, setMachineFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [paginatedObservations, setPaginatedObservations] = useState<Observation[]>([]);
   const [paginatedSummaries, setPaginatedSummaries] = useState<Summary[]>([]);
   const [paginatedPrompts, setPaginatedPrompts] = useState<UserPrompt[]>([]);
@@ -23,22 +28,41 @@ export function App() {
   const { settings, saveSettings, isSaving, saveStatus } = useSettings();
   const { stats, refreshStats } = useStats();
   const { preference, resolvedTheme, setThemePreference } = useTheme();
-  const pagination = usePagination(currentFilter);
+  const pagination = usePagination(currentFilter, machineFilter);
 
-  // Merge SSE live data with paginated data, filtering by project when active
+  const federationMachines = stats?.federation?.machines || [];
+
+  // Merge SSE live data with paginated data, filtering by project and search
   const allObservations = useMemo(() => {
     const live = currentFilter
       ? observations.filter(o => o.project === currentFilter)
       : observations;
-    return mergeAndDeduplicateByProject(live, paginatedObservations);
-  }, [observations, paginatedObservations, currentFilter]);
+    let merged = mergeAndDeduplicateByProject(live, paginatedObservations);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      merged = merged.filter(o =>
+        (o.title && o.title.toLowerCase().includes(q)) ||
+        (o.subtitle && o.subtitle.toLowerCase().includes(q))
+      );
+    }
+    return merged;
+  }, [observations, paginatedObservations, currentFilter, searchQuery]);
 
   const allSummaries = useMemo(() => {
     const live = currentFilter
       ? summaries.filter(s => s.project === currentFilter)
       : summaries;
-    return mergeAndDeduplicateByProject(live, paginatedSummaries);
-  }, [summaries, paginatedSummaries, currentFilter]);
+    let merged = mergeAndDeduplicateByProject(live, paginatedSummaries);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      merged = merged.filter(s =>
+        (s.investigated && s.investigated.toLowerCase().includes(q)) ||
+        (s.learned && s.learned.toLowerCase().includes(q)) ||
+        (s.completed && s.completed.toLowerCase().includes(q))
+      );
+    }
+    return merged;
+  }, [summaries, paginatedSummaries, currentFilter, searchQuery]);
 
   const allPrompts = useMemo(() => {
     const live = currentFilter
@@ -47,14 +71,23 @@ export function App() {
     return mergeAndDeduplicateByProject(live, paginatedPrompts);
   }, [prompts, paginatedPrompts, currentFilter]);
 
-  // Toggle context preview modal
+  // Toggle modals
   const toggleContextPreview = useCallback(() => {
     setContextPreviewOpen(prev => !prev);
   }, []);
 
-  // Toggle logs modal
   const toggleLogsModal = useCallback(() => {
     setLogsModalOpen(prev => !prev);
+  }, []);
+
+  const toggleFederationModal = useCallback(() => {
+    setFederationModalOpen(prev => !prev);
+  }, []);
+
+  const handleFilterByProjectMachine = useCallback((project: string, machine: string) => {
+    setCurrentFilter(project);
+    setMachineFilter(machine);
+    setFederationModalOpen(false);
   }, []);
 
   // Handle loading more data
@@ -78,7 +111,7 @@ export function App() {
     } catch (error) {
       console.error('Failed to load more data:', error);
     }
-  }, [currentFilter, pagination.observations, pagination.summaries, pagination.prompts]);
+  }, [currentFilter, machineFilter, pagination.observations, pagination.summaries, pagination.prompts]);
 
   // Reset paginated data and load first page when filter changes
   useEffect(() => {
@@ -87,20 +120,30 @@ export function App() {
     setPaginatedPrompts([]);
     handleLoadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilter]);
+  }, [currentFilter, machineFilter]);
 
   return (
     <>
       <Header
         isConnected={isConnected}
-        projects={projects}
-        currentFilter={currentFilter}
-        onFilterChange={setCurrentFilter}
         isProcessing={isProcessing}
         queueDepth={queueDepth}
         themePreference={preference}
         onThemeChange={setThemePreference}
         onContextPreviewToggle={toggleContextPreview}
+        federationMachineCount={federationMachines.length}
+        onFederationClick={toggleFederationModal}
+      />
+
+      <FilterBar
+        projects={projects}
+        projectFilter={currentFilter}
+        onProjectFilterChange={setCurrentFilter}
+        machineFilter={machineFilter}
+        onMachineFilterChange={setMachineFilter}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        machines={federationMachines}
       />
 
       <Feed
@@ -135,6 +178,12 @@ export function App() {
       <LogsDrawer
         isOpen={logsModalOpen}
         onClose={toggleLogsModal}
+      />
+
+      <FederationStatsModal
+        isOpen={federationModalOpen}
+        onClose={toggleFederationModal}
+        onFilterByProjectMachine={handleFilterByProjectMachine}
       />
     </>
   );

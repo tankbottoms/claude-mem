@@ -348,6 +348,9 @@ export class WorkerService {
     // Start HTTP server FIRST - make it available immediately
     await this.server.listen(port, host);
 
+    // Start HTTPS server if enabled in settings
+    await this.startHttpsServer(host);
+
     // Worker writes its own PID - reliable on all platforms
     // This happens after listen() succeeds, ensuring the worker is actually ready
     // On Windows, the spawner's PID is cmd.exe (useless), so worker must write its own
@@ -369,6 +372,83 @@ export class WorkerService {
     this.initializeBackground().catch((error) => {
       logger.error('SYSTEM', 'Background initialization failed', {}, error as Error);
     });
+  }
+
+  /**
+   * Start HTTPS server using Tailscale certs or user-provided certs.
+   * Non-fatal — if certs aren't available, only HTTP runs.
+   */
+  private async startHttpsServer(host: string): Promise<void> {
+    const { USER_SETTINGS_PATH } = await import('../shared/paths.js');
+    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
+
+    const httpsEnabled = settings.CLAUDE_MEM_HTTPS_ENABLED === 'true';
+    if (!httpsEnabled) return;
+
+    const httpsPort = parseInt(settings.CLAUDE_MEM_HTTPS_PORT || '37778', 10);
+    const certsDir = path.join(SettingsDefaultsManager.get('CLAUDE_MEM_DATA_DIR'), 'certs');
+
+    // Ensure certs directory exists
+    if (!existsSync(certsDir)) {
+      const { mkdirSync } = await import('fs');
+      mkdirSync(certsDir, { recursive: true });
+    }
+
+    // Try to find certs: user-provided first, then Tailscale-provisioned
+    let certPath = path.join(certsDir, 'server.crt');
+    let keyPath = path.join(certsDir, 'server.key');
+
+    // If no user certs, try Tailscale cert provisioning
+    if (!existsSync(certPath) || !existsSync(keyPath)) {
+      try {
+        const hostname = await this.getTailscaleHostname();
+        if (hostname) {
+          const tsCertPath = path.join(certsDir, `${hostname}.crt`);
+          const tsKeyPath = path.join(certsDir, `${hostname}.key`);
+
+          // Provision certs if missing or older than 60 days
+          const needsRefresh = !existsSync(tsCertPath) || !existsSync(tsKeyPath) ||
+            (Date.now() - (await import('fs')).statSync(tsCertPath).mtimeMs > 60 * 24 * 3600 * 1000);
+
+          if (needsRefresh) {
+            const { execSync } = await import('child_process');
+            execSync(`tailscale cert --cert-file "${tsCertPath}" --key-file "${tsKeyPath}" "${hostname}"`, {
+              timeout: 15000,
+              stdio: 'pipe'
+            });
+            logger.info('SYSTEM', 'Tailscale certs provisioned', { hostname, certPath: tsCertPath });
+          }
+
+          certPath = tsCertPath;
+          keyPath = tsKeyPath;
+        }
+      } catch (err) {
+        logger.warn('SYSTEM', 'Tailscale cert provisioning failed', {
+          error: (err as Error).message
+        });
+      }
+    }
+
+    await this.server.listenHttps(httpsPort, host, certPath, keyPath);
+  }
+
+  /**
+   * Get the Tailscale MagicDNS FQDN for this machine.
+   */
+  private async getTailscaleHostname(): Promise<string | null> {
+    try {
+      const { execSync } = await import('child_process');
+      const statusJson = execSync('tailscale status --json', { timeout: 5000, stdio: 'pipe' }).toString();
+      const status = JSON.parse(statusJson);
+      const self = status.Self;
+      if (self?.DNSName) {
+        // DNSName ends with a trailing dot, remove it
+        return self.DNSName.replace(/\.$/, '');
+      }
+    } catch {
+      // Tailscale not available
+    }
+    return null;
   }
 
   /**
