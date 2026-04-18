@@ -162,15 +162,16 @@ All upstream fixes are included in this fork:
 - FOREIGN KEY loop prevention in migrations
 - Content-hash deduplication for observations
 
-### Federation Machines
+### Federation Roles
 
-| Machine | Role | Arch |
-|---------|------|------|
-| mepstudio | Master (source of truth, pushes to git) | arm64 |
-| spark-1 | GPU node, pull-only | aarch64 |
-| spark-2 | GPU node, pull-only | aarch64 |
-| mepmbp2022 | MacBook Pro 2022, pull-only | arm64 |
-| mepmbp2019 | MacBook Pro 2019, pull-only | x86_64 |
+| Role | Description |
+|------|-------------|
+| Dev machine | Source of truth; only node that pushes to git. |
+| Peers | Pull-only nodes that fetch from the fork and run their own worker. |
+
+Any mix of macOS (arm64/x86_64) and Linux (aarch64/x86_64) hosts can
+participate. The per-operator list of hostnames, LAN IPs, and SSH users
+is operator-local and should not be committed to this repository.
 
 ### Syncing with Upstream
 

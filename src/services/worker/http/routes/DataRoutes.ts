@@ -259,7 +259,8 @@ export class DataRoutes extends BaseRouteHandler {
     const sseClients = this.sseBroadcaster.getClientCount();
 
     // Federation stats: per-machine observation counts.
-    // Normalize machine names by stripping ".local" suffix so mepmbp2019.local merges with mepmbp2019.
+    // Normalize machine names by stripping the ".local" suffix (mDNS adds it on some macOS hosts)
+    // so the same physical host reports under a single name.
     const machineRows = db.prepare(`
       SELECT machine, SUM(count) as count, MAX(last_seen) as last_seen FROM (
         SELECT

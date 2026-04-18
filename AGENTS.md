@@ -2,36 +2,36 @@
 
 ## Development Workflow
 
-**Source of truth:** mepstudio (`~/Developer/claude-mem/`)
+**Source of truth:** one designated development machine (`~/Developer/claude-mem/`).
 
 **Flow:**
 
 ```
-mepstudio ~/Developer/claude-mem  ->  git push origin main
-                                          |
-all machines ~/.claude/plugins/...  <-  git pull origin main
+dev-machine ~/Developer/claude-mem  ->  git push origin main
+                                           |
+all peers ~/.claude/plugins/...       <-  git pull origin main
 ```
 
 **Rules:**
 
 1. Never edit code in the plugins directory (`~/.claude/plugins/`).
-2. Before editing, verify mepstudio has pushed all changes: `git fetch origin && git log origin/main..HEAD && git log HEAD..origin/main`
-3. All development happens in `~/Developer/claude-mem/` on mepstudio.
+2. Before editing, verify the dev machine has pushed all changes:
+   ```
+   git fetch origin && git log origin/main..HEAD && git log HEAD..origin/main
+   ```
+3. All development happens in `~/Developer/claude-mem/` on the dev machine.
 4. Push to `main` when ready.
-5. Pull into plugins directory on all machines after pushing.
+5. Pull into the plugins directory on all peers after pushing.
 
-## SSH Access
+## Federation Topology
 
-| Machine | SSH Command | User | LAN IP |
-|---------|-------------|------|--------|
-| mepstudio | `ssh mark.phillips@192.168.1.217` | mark.phillips | 192.168.1.217 |
-| spark-1 | `ssh rooot@192.168.1.76` | rooot | 192.168.1.76 |
-| spark-2 | `ssh rooot@192.168.1.63` | rooot | 192.168.1.63 |
-| mepmbp2022 | `ssh mark.phillips@192.168.1.13` | mark.phillips | 192.168.1.13 |
-| mepmbp2020 | `ssh rooot@192.168.1.205` | rooot | 192.168.1.205 |
-| mepmbp2019 | `ssh mark.phillips@192.168.1.145` | mark.phillips | 192.168.1.145 |
+This plugin supports running across multiple machines (a "federation"). The
+specific hostnames, IPs, and SSH access patterns for any given federation are
+operator-local and should be kept in a file outside of source control (for
+example, `~/.claude/federation.json` or similar). **Do not commit per-operator
+host lists, SSH usernames, LAN IPs, or tailnet hostnames to this repository.**
 
-## Worker Restart Procedure
+## Worker Restart Procedure (macOS)
 
 ```bash
 # 1. Unload watchdog first (prevents auto-restart during maintenance)
@@ -47,17 +47,20 @@ launchctl load ~/Library/LaunchAgents/com.claude-mem.worker.plist
 launchctl load ~/Library/LaunchAgents/com.claude-mem.network-watchdog.plist
 ```
 
-On Linux (spark-1, spark-2), the worker runs as a systemd service or directly via Bun.
+On Linux peers, the worker runs as a systemd service or directly via Bun.
 
 ## Testing Across Machines
 
-1. Make changes on mepstudio in `~/Developer/claude-mem/`
+1. Make changes on the dev machine in `~/Developer/claude-mem/`
 2. Build: `bun run build`
 3. Test locally: verify worker starts, check `http://localhost:37777/api/health`
 4. Push: `git push origin main`
-5. Pull on target machine: `ssh <user>@<ip> "cd ~/.claude/plugins/<path> && git pull origin main"`
-6. Restart worker on target machine
-7. Verify: `curl http://<ip>:37777/api/health`
+5. Pull on each peer and restart the worker
+6. Verify each peer's dual endpoint:
+   ```
+   curl -s  http://<peer>:37777/api/version
+   curl -sk https://<peer>:37778/api/version
+   ```
 
 ## Key Source Files
 
@@ -87,6 +90,5 @@ On Linux (spark-1, spark-2), the worker runs as a systemd service or directly vi
 | Port | Protocol | Service |
 |------|----------|---------|
 | 37777 | HTTP | Worker API + Web UI |
-| 37778 | HTTPS | Worker API (TLS, mepstudio only) |
-| 8000 | HTTP | ChromaDB (most machines) |
-| 8100 | HTTP | ChromaDB (spark-1 only) |
+| 37778 | HTTPS | Worker API (TLS) |
+| 8000 | HTTP | ChromaDB (default) |
