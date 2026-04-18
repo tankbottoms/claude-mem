@@ -110,9 +110,25 @@ export interface DatabaseStats {
   observations?: number;
   sessions?: number;
   summaries?: number;
+  projectCount?: number;
+  avgChars?: number;
+  avgDiscoveryTokens?: number;
+  syncCount?: number;
+}
+
+export interface MachineStats {
+  machine: string;
+  count: number;
+  last_seen: number;
+}
+
+export interface FederationStats {
+  machines: MachineStats[];
+  projectMachines: Record<string, Array<{ machine: string; count: number }>>;
 }
 
 export interface Stats {
-  worker?: WorkerStats;
+  worker?: WorkerStats & { hostname?: string };
   database?: DatabaseStats;
+  federation?: FederationStats;
 }

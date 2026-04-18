@@ -9,7 +9,7 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { readFileSync, statSync, existsSync } from 'fs';
 import { logger } from '../../../../utils/logger.js';
-import { homedir } from 'os';
+import { homedir, hostname } from 'os';
 import { getPackageRoot } from '../../../../shared/paths.js';
 import { getWorkerPort } from '../../../../shared/worker-utils.js';
 import { PaginationHelper } from '../../PaginationHelper.js';
@@ -258,20 +258,66 @@ export class DataRoutes extends BaseRouteHandler {
     const activeSessions = this.sessionManager.getActiveSessionCount();
     const sseClients = this.sseBroadcaster.getClientCount();
 
+    // Federation stats: per-machine observation counts
+    const machineRows = db.prepare(`
+      SELECT COALESCE(source_machine, ?) as machine, COUNT(*) as count,
+             MAX(created_at_epoch) as last_seen
+      FROM observations
+      GROUP BY source_machine
+      ORDER BY count DESC
+    `).all(hostname()) as Array<{ machine: string; count: number; last_seen: number }>;
+
+    // Project-machine groupings
+    const projectMachineRows = db.prepare(`
+      SELECT project, COALESCE(source_machine, ?) as machine, COUNT(*) as count
+      FROM observations
+      WHERE project IS NOT NULL
+      GROUP BY project, source_machine
+      ORDER BY project, count DESC
+    `).all(hostname()) as Array<{ project: string; machine: string; count: number }>;
+
+    const projectMachines: Record<string, Array<{ machine: string; count: number }>> = {};
+    for (const row of projectMachineRows) {
+      if (!projectMachines[row.project]) projectMachines[row.project] = [];
+      projectMachines[row.project].push({ machine: row.machine, count: row.count });
+    }
+
+    // Extended database stats
+    const projectCount = db.prepare('SELECT COUNT(DISTINCT project) as count FROM observations WHERE project IS NOT NULL').get() as { count: number };
+    const avgChars = db.prepare(`SELECT CAST(AVG(LENGTH(COALESCE(title,'') || COALESCE(subtitle,'') || COALESCE(narrative,'') || COALESCE(facts,''))) as INT) as avg_chars FROM observations`).get() as { avg_chars: number };
+    const avgTokens = db.prepare('SELECT CAST(AVG(discovery_tokens) as INT) as avg_tokens FROM observations WHERE discovery_tokens > 0').get() as { avg_tokens: number };
+
+    let syncCount = 0;
+    try {
+      const syncRow = db.prepare('SELECT COUNT(*) as count FROM federation_sync').get() as { count: number };
+      syncCount = syncRow.count;
+    } catch {
+      // federation_sync table may not exist on older installs
+    }
+
     res.json({
       worker: {
         version,
         uptime,
         activeSessions,
         sseClients,
-        port: getWorkerPort()
+        port: getWorkerPort(),
+        hostname: hostname()
       },
       database: {
         path: dbPath,
         size: dbSize,
         observations: totalObservations.count,
         sessions: totalSessions.count,
-        summaries: totalSummaries.count
+        summaries: totalSummaries.count,
+        projectCount: projectCount.count,
+        avgChars: avgChars.avg_chars || 0,
+        avgDiscoveryTokens: avgTokens.avg_tokens || 0,
+        syncCount
+      },
+      federation: {
+        machines: machineRows,
+        projectMachines
       }
     });
   });
