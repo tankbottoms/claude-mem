@@ -124,7 +124,7 @@ export interface MachineStats {
 
 export interface FederationStats {
   machines: MachineStats[];
-  projectMachines: Record<string, Array<{ machine: string; count: number }>>;
+  projectMachines: Record<string, Array<{ machine: string; count: number; last_seen: number }>>;
 }
 
 export interface Stats {

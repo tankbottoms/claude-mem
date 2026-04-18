@@ -33,10 +33,13 @@ function formatTimestamp(epoch: number): string {
   return new Date(epoch).toLocaleDateString();
 }
 
+const PROJECT_LIMIT_OPTIONS = [10, 20, 30] as const;
+
 export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine }: FederationStatsModalProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
   const [httpsUrls, setHttpsUrls] = useState<Record<string, string>>({});
+  const [projectLimit, setProjectLimit] = useState<number | 'all'>(10);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -218,48 +221,81 @@ export function FederationStatsModal({ isOpen, onClose, onFilterByProjectMachine
                 <i className="fat fa-folder-open" style={{ marginRight: '6px' }}></i>
                 Projects by Machine
               </h3>
-              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              <table className="fed-table">
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Machines</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(projectMachines)
-                    .sort((a, b) => {
-                      const aTotal = a[1].reduce((s, m) => s + m.count, 0);
-                      const bTotal = b[1].reduce((s, m) => s + m.count, 0);
-                      return bTotal - aTotal;
-                    })
-                    .map(([project, pmachines]) => (
-                    <tr key={project}>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{project}</td>
-                      <td>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {pmachines.map(pm => {
-                            const c = getMachineColor(pm.machine);
-                            return (
-                              <span
-                                key={pm.machine}
-                                className="fed-project-machine-badge"
-                                onClick={() => onFilterByProjectMachine?.(project, pm.machine)}
-                                style={{ background: c.bg, color: c.text, borderColor: c.border }}
-                                title={`Filter by ${project} on ${pm.machine}`}
-                              >
-                                {pm.machine}
-                                <span style={{ marginLeft: '4px', opacity: 0.6 }}>{pm.count}</span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
+              {(() => {
+                const sortedProjects = Object.entries(projectMachines)
+                  .map(([project, pmachines]) => {
+                    const lastSeen = pmachines.reduce((max, m) => Math.max(max, m.last_seen || 0), 0);
+                    return { project, pmachines, lastSeen };
+                  })
+                  .sort((a, b) => b.lastSeen - a.lastSeen);
+                const visible = projectLimit === 'all' ? sortedProjects : sortedProjects.slice(0, projectLimit);
+                const total = sortedProjects.length;
+                return (
+                  <>
+                    <div className="fed-projects-scroll">
+                    <table className="fed-table">
+                      <thead>
+                        <tr>
+                          <th>Project</th>
+                          <th>Machines</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visible.map(({ project, pmachines }) => (
+                          <tr key={project}>
+                            <td className="fed-project-name">{project}</td>
+                            <td>
+                              <div className="fed-project-machines">
+                                {pmachines.map(pm => {
+                                  const c = getMachineColor(pm.machine);
+                                  return (
+                                    <span
+                                      key={pm.machine}
+                                      className="fed-project-machine-badge"
+                                      onClick={() => onFilterByProjectMachine?.(project, pm.machine)}
+                                      style={{ background: c.bg, color: c.text, borderColor: c.border }}
+                                      title={`Filter by ${project} on ${pm.machine}`}
+                                    >
+                                      {pm.machine}
+                                      <span style={{ marginLeft: '4px', opacity: 0.6 }}>{pm.count}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
+                    <div className="fed-project-limit-bar">
+                      <span className="fed-project-limit-label">
+                        Showing {visible.length} of {total}
+                      </span>
+                      <div className="fed-project-limit-badges">
+                        {PROJECT_LIMIT_OPTIONS.map(n => (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`fed-limit-badge${projectLimit === n ? ' active' : ''}`}
+                            onClick={() => setProjectLimit(n)}
+                            disabled={n >= total && projectLimit !== 'all'}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className={`fed-limit-badge${projectLimit === 'all' ? ' active' : ''}`}
+                          onClick={() => setProjectLimit('all')}
+                        >
+                          All
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}

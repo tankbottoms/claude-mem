@@ -41,6 +41,16 @@ export function Header({
         <span className="logo-text">claude-mem</span>
       </h1>
       <div className="status">
+        {federationMachineCount > 0 && (
+          <button
+            className="federation-badge-btn"
+            onClick={onFederationClick}
+            title="Federation"
+          >
+            <i className="fat fa-project-diagram"></i>
+            <span className="federation-count">{federationMachineCount}</span>
+          </button>
+        )}
         <a
           href="https://docs.claude-mem.ai"
           target="_blank"
@@ -76,16 +86,6 @@ export function Header({
           </svg>
         </a>
         <GitHubStarsButton username="thedotmack" repo="claude-mem" />
-        {federationMachineCount > 0 && (
-          <button
-            className="federation-badge-btn"
-            onClick={onFederationClick}
-            title="Federation"
-          >
-            <i className="fat fa-project-diagram"></i>
-            <span className="federation-count">{federationMachineCount}</span>
-          </button>
-        )}
         <ThemeToggle
           preference={themePreference}
           onThemeChange={onThemeChange}

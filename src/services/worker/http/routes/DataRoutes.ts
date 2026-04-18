@@ -258,28 +258,41 @@ export class DataRoutes extends BaseRouteHandler {
     const activeSessions = this.sessionManager.getActiveSessionCount();
     const sseClients = this.sseBroadcaster.getClientCount();
 
-    // Federation stats: per-machine observation counts
+    // Federation stats: per-machine observation counts.
+    // Normalize machine names by stripping ".local" suffix so mepmbp2019.local merges with mepmbp2019.
     const machineRows = db.prepare(`
-      SELECT COALESCE(source_machine, ?) as machine, COUNT(*) as count,
-             MAX(created_at_epoch) as last_seen
-      FROM observations
-      GROUP BY source_machine
+      SELECT machine, SUM(count) as count, MAX(last_seen) as last_seen FROM (
+        SELECT
+          REPLACE(COALESCE(source_machine, ?), '.local', '') as machine,
+          COUNT(*) as count,
+          MAX(created_at_epoch) as last_seen
+        FROM observations
+        GROUP BY source_machine
+      )
+      GROUP BY machine
       ORDER BY count DESC
     `).all(hostname()) as Array<{ machine: string; count: number; last_seen: number }>;
 
-    // Project-machine groupings
+    // Project-machine groupings with per-row last_seen so the UI can sort projects by recency.
     const projectMachineRows = db.prepare(`
-      SELECT project, COALESCE(source_machine, ?) as machine, COUNT(*) as count
-      FROM observations
-      WHERE project IS NOT NULL
-      GROUP BY project, source_machine
+      SELECT project, machine, SUM(count) as count, MAX(last_seen) as last_seen FROM (
+        SELECT
+          project,
+          REPLACE(COALESCE(source_machine, ?), '.local', '') as machine,
+          COUNT(*) as count,
+          MAX(created_at_epoch) as last_seen
+        FROM observations
+        WHERE project IS NOT NULL
+        GROUP BY project, source_machine
+      )
+      GROUP BY project, machine
       ORDER BY project, count DESC
-    `).all(hostname()) as Array<{ project: string; machine: string; count: number }>;
+    `).all(hostname()) as Array<{ project: string; machine: string; count: number; last_seen: number }>;
 
-    const projectMachines: Record<string, Array<{ machine: string; count: number }>> = {};
+    const projectMachines: Record<string, Array<{ machine: string; count: number; last_seen: number }>> = {};
     for (const row of projectMachineRows) {
       if (!projectMachines[row.project]) projectMachines[row.project] = [];
-      projectMachines[row.project].push({ machine: row.machine, count: row.count });
+      projectMachines[row.project].push({ machine: row.machine, count: row.count, last_seen: row.last_seen });
     }
 
     // Extended database stats
