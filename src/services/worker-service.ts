@@ -439,7 +439,8 @@ export class WorkerService {
     try {
       const { execSync } = await import('child_process');
       const statusJson = execSync('tailscale status --json', { timeout: 5000, stdio: 'pipe' }).toString();
-      const status = JSON.parse(statusJson);
+      const jsonStart = statusJson.indexOf('{');
+      const status = JSON.parse(jsonStart >= 0 ? statusJson.slice(jsonStart) : statusJson);
       const self = status.Self;
       if (self?.DNSName) {
         // DNSName ends with a trailing dot, remove it
