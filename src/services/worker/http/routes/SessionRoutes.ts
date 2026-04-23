@@ -94,7 +94,7 @@ export class SessionRoutes extends BaseRouteHandler {
    * The next generator will use the new provider with shared conversationHistory.
    */
   private static readonly STALE_GENERATOR_THRESHOLD_MS = 30_000; // 30 seconds (#1099)
-  private static readonly MAX_SESSION_WALL_CLOCK_MS = 4 * 60 * 60 * 1000; // 4 hours (#1590)
+  private static readonly MAX_SESSION_WALL_CLOCK_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (fork override of upstream #1590 — allows backfill retry of historical failures)
 
   private ensureGeneratorRunning(sessionDbId: number, source: string): void {
     const session = this.sessionManager.getSession(sessionDbId);
