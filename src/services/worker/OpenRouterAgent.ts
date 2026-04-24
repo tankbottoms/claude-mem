@@ -86,7 +86,7 @@ export class OpenRouterAgent {
    */
   async startSession(session: ActiveSession, worker?: WorkerRef): Promise<void> {
     // Get OpenRouter configuration (pure lookup, no external I/O)
-    const { apiKey, model, siteUrl, appName } = this.getOpenRouterConfig();
+    const { apiKey, model, siteUrl, appName, apiBase } = this.getOpenRouterConfig();
 
     if (!apiKey) {
       throw new Error('OpenRouter API key not configured. Set CLAUDE_MEM_OPENROUTER_API_KEY in settings or OPENROUTER_API_KEY environment variable.');
@@ -112,7 +112,7 @@ export class OpenRouterAgent {
     session.conversationHistory.push({ role: 'user', content: initPrompt });
 
     try {
-      const initResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName);
+      const initResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName, apiBase);
       await this.handleInitResponse(initResponse, session, worker, model);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -130,7 +130,7 @@ export class OpenRouterAgent {
     // Process pending messages
     try {
       for await (const message of this.sessionManager.getMessageIterator(session.sessionDbId)) {
-        lastCwd = await this.processOneMessage(session, message, lastCwd, apiKey, model, siteUrl, appName, worker, mode);
+        lastCwd = await this.processOneMessage(session, message, lastCwd, apiKey, model, siteUrl, appName, worker, mode, apiBase);
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -207,7 +207,8 @@ export class OpenRouterAgent {
     siteUrl: string | undefined,
     appName: string | undefined,
     worker: WorkerRef | undefined,
-    mode: ModeConfig
+    mode: ModeConfig,
+    apiBase?: string
   ): Promise<string | undefined> {
     this.prepareMessageMetadata(session, message);
 
@@ -219,12 +220,12 @@ export class OpenRouterAgent {
     if (message.type === 'observation') {
       await this.processObservationMessage(
         session, message, originalTimestamp, lastCwd,
-        apiKey, model, siteUrl, appName, worker, mode
+        apiKey, model, siteUrl, appName, worker, mode, apiBase
       );
     } else if (message.type === 'summarize') {
       await this.processSummaryMessage(
         session, message, originalTimestamp, lastCwd,
-        apiKey, model, siteUrl, appName, worker, mode
+        apiKey, model, siteUrl, appName, worker, mode, apiBase
       );
     }
 
@@ -244,7 +245,8 @@ export class OpenRouterAgent {
     siteUrl: string | undefined,
     appName: string | undefined,
     worker: WorkerRef | undefined,
-    _mode: ModeConfig
+    _mode: ModeConfig,
+    apiBase?: string
   ): Promise<void> {
     if (message.prompt_number !== undefined) {
       session.lastPromptNumber = message.prompt_number;
@@ -265,7 +267,7 @@ export class OpenRouterAgent {
     });
 
     session.conversationHistory.push({ role: 'user', content: obsPrompt });
-    const obsResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName);
+    const obsResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName, apiBase);
 
     let tokensUsed = 0;
     if (obsResponse.content) {
@@ -294,7 +296,8 @@ export class OpenRouterAgent {
     siteUrl: string | undefined,
     appName: string | undefined,
     worker: WorkerRef | undefined,
-    mode: ModeConfig
+    mode: ModeConfig,
+    apiBase?: string
   ): Promise<void> {
     // CRITICAL: Check memorySessionId BEFORE making expensive LLM call
     if (!session.memorySessionId) {
@@ -310,7 +313,7 @@ export class OpenRouterAgent {
     }, mode);
 
     session.conversationHistory.push({ role: 'user', content: summaryPrompt });
-    const summaryResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName);
+    const summaryResponse = await this.queryOpenRouterMultiTurn(session.conversationHistory, apiKey, model, siteUrl, appName, apiBase);
 
     let tokensUsed = 0;
     if (summaryResponse.content) {
@@ -423,7 +426,8 @@ export class OpenRouterAgent {
     apiKey: string,
     model: string,
     siteUrl?: string,
-    appName?: string
+    appName?: string,
+    apiBase?: string
   ): Promise<{ content: string; tokensUsed?: number }> {
     // Truncate history to prevent runaway costs
     const truncatedHistory = this.truncateHistory(history);
@@ -431,13 +435,16 @@ export class OpenRouterAgent {
     const totalChars = truncatedHistory.reduce((sum, m) => sum + m.content.length, 0);
     const estimatedTokens = this.estimateTokens(truncatedHistory.map(m => m.content).join(''));
 
+    const endpoint = apiBase && apiBase.length > 0 ? apiBase : OPENROUTER_API_URL;
+
     logger.debug('SDK', `Querying OpenRouter multi-turn (${model})`, {
       turns: truncatedHistory.length,
       totalChars,
-      estimatedTokens
+      estimatedTokens,
+      endpoint
     });
 
-    const response = await fetch(OPENROUTER_API_URL, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -505,7 +512,7 @@ export class OpenRouterAgent {
    * Get OpenRouter configuration from settings or environment
    * Issue #733: Uses centralized ~/.claude-mem/.env for credentials, not random project .env files
    */
-  private getOpenRouterConfig(): { apiKey: string; model: string; siteUrl?: string; appName?: string } {
+  private getOpenRouterConfig(): { apiKey: string; model: string; siteUrl?: string; appName?: string; apiBase?: string } {
     const settingsPath = USER_SETTINGS_PATH;
     const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
 
@@ -520,7 +527,11 @@ export class OpenRouterAgent {
     const siteUrl = settings.CLAUDE_MEM_OPENROUTER_SITE_URL || '';
     const appName = settings.CLAUDE_MEM_OPENROUTER_APP_NAME || 'claude-mem';
 
-    return { apiKey, model, siteUrl, appName };
+    // Optional OpenAI-compatible endpoint override (full /chat/completions URL).
+    // Used to route OpenRouter-shaped requests through a local LiteLLM or proxy.
+    const apiBase = settings.CLAUDE_MEM_OPENROUTER_API_BASE || '';
+
+    return { apiKey, model, siteUrl, appName, apiBase };
   }
 }
 
