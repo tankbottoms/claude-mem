@@ -317,6 +317,10 @@ export class WorkerService {
     this.server.registerRoutes(new SettingsRoutes(this.settingsManager));
     this.server.registerRoutes(new LogsRoutes());
     this.server.registerRoutes(new MemoryRoutes(this.dbManager, 'claude-mem'));
+
+    // Federation sync routes (preserved across upstream merges — see CLAUDE.md)
+    const { FederationSyncRoutes } = require('./worker/http/routes/FederationSyncRoutes.js');
+    this.server.registerRoutes(new FederationSyncRoutes(this.dbManager));
   }
 
   /**
