@@ -92,7 +92,13 @@ export async function processAgentResponse(
     !/<observation>|<summary>|<skip_summary\b/.test(text)
   );
 
-  if (isNonXmlResponse) {
+  // Some pool models reply with prose like "No observations to record. ..."
+  // for sessions with no recordable activity. That's a legitimate empty result,
+  // not garbage — treat it as an intentional skip so we confirm the messages
+  // and avoid pointless retry loops.
+  const isIntentionalEmpty = isNonXmlResponse && /no\s+observations?\s+to\s+record|nothing\s+to\s+record|no\s+(?:tool|technical)\s+(?:executions?|changes?)/i.test(text);
+
+  if (isNonXmlResponse && !isIntentionalEmpty) {
     const preview = text.length > 200 ? `${text.slice(0, 200)}...` : text;
     logger.warn('PARSER', `${agentName} returned non-XML response; marking messages as failed for retry (#1874)`, {
       sessionId: session.sessionDbId,
@@ -103,6 +109,18 @@ export async function processAgentResponse(
     const pendingStore = sessionManager.getPendingMessageStore();
     for (const messageId of session.processingMessageIds) {
       pendingStore.markFailed(messageId);
+    }
+    session.processingMessageIds = [];
+    return;
+  }
+
+  if (isIntentionalEmpty) {
+    logger.info('PARSER', `${agentName} returned "no observations to record" prose — treating as intentional skip`, {
+      sessionId: session.sessionDbId
+    });
+    const pendingStore = sessionManager.getPendingMessageStore();
+    for (const messageId of session.processingMessageIds) {
+      pendingStore.confirmProcessed(messageId);
     }
     session.processingMessageIds = [];
     return;

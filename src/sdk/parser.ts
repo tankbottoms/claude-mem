@@ -53,19 +53,33 @@ export function parseObservations(text: string, correlationId?: string): ParsedO
     // All fields except type are nullable in schema.
     // If type is missing or invalid, use first type from mode as fallback.
 
-    // Determine final type using active mode's valid types
+    // Determine final type using active mode's valid types.
+    // Smaller pool models frequently emit synonyms (success, error, info, etc).
+    // Map common drift to the closest valid type before falling back, and only
+    // log at WARN — these are upstream-model issues we already handle gracefully.
     const mode = ModeManager.getInstance().getActiveMode();
     const validTypes = mode.observation_types.map(t => t.id);
     const fallbackType = validTypes[0]; // First type in mode's list is the fallback
+    const TYPE_ALIASES: Record<string, string> = {
+      success: 'change', completed: 'change', done: 'change',
+      info: 'change', status: 'change', system: 'change',
+      configuration: 'change', deployment: 'change',
+      error: 'bugfix', fix: 'bugfix', issue: 'bugfix', bug: 'bugfix',
+      verification: 'discovery', artifact: 'discovery',
+    };
     let finalType = fallbackType;
     if (type) {
-      if (validTypes.includes(type.trim())) {
-        finalType = type.trim();
+      const normalized = type.trim().toLowerCase();
+      if (validTypes.includes(normalized)) {
+        finalType = normalized;
+      } else if (TYPE_ALIASES[normalized] && validTypes.includes(TYPE_ALIASES[normalized])) {
+        finalType = TYPE_ALIASES[normalized];
+        logger.debug('PARSER', `Aliased observation type: ${type} -> ${finalType}`, { correlationId });
       } else {
-        logger.error('PARSER', `Invalid observation type: ${type}, using "${fallbackType}"`, { correlationId });
+        logger.warn('PARSER', `Invalid observation type: ${type}, using "${fallbackType}"`, { correlationId });
       }
     } else {
-      logger.error('PARSER', `Observation missing type field, using "${fallbackType}"`, { correlationId });
+      logger.warn('PARSER', `Observation missing type field, using "${fallbackType}"`, { correlationId });
     }
 
     // All other fields are optional - save whatever we have
