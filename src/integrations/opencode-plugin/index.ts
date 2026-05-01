@@ -7,7 +7,7 @@
  * Plugin hooks:
  * - tool.execute.after: Captures tool execution observations
  * - Bus events: session.created, message.updated, session.compacted,
- *   file.edited, session.deleted
+ *   file.edited, session.deleted (in-memory cleanup only; worker self-completes)
  *
  * Custom tool:
  * - claude_mem_search: Search memory database from within OpenCode
@@ -94,7 +94,24 @@ interface SessionDeletedEvent {
 // Constants
 // ============================================================================
 
-const WORKER_BASE_URL = "http://127.0.0.1:37777";
+/**
+ * Resolve the worker port matching SettingsDefaultsManager's algorithm:
+ *   process.env.CLAUDE_MEM_WORKER_PORT, else 37700 + (uid % 100).
+ * Required for multi-account isolation (#2101) and so this plugin talks to
+ * the same worker the rest of claude-mem (hooks, npx-cli) connects to.
+ * Inlined rather than imported to keep this OpenCode plugin standalone.
+ */
+function resolveWorkerPort(): string {
+  const fromEnv = process.env.CLAUDE_MEM_WORKER_PORT;
+  const parsed = fromEnv ? Number.parseInt(fromEnv.trim(), 10) : NaN;
+  if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 65535) {
+    return String(parsed);
+  }
+  const uid = typeof process.getuid === "function" ? process.getuid() : 77;
+  return String(37700 + (uid % 100));
+}
+
+const WORKER_BASE_URL = `http://127.0.0.1:${resolveWorkerPort()}`;
 const MAX_TOOL_RESPONSE_LENGTH = 1000;
 
 // ============================================================================
@@ -299,16 +316,7 @@ export const ClaudeMemPlugin = async (ctx: OpenCodePluginContext) => {
 
         case "session.deleted": {
           const { event } = payload as SessionDeletedEvent;
-          const contentSessionId = contentSessionIdsByOpenCodeSessionId.get(
-            event.sessionID,
-          );
-
-          if (contentSessionId) {
-            workerPostFireAndForget("/api/sessions/complete", {
-              contentSessionId,
-            });
-            contentSessionIdsByOpenCodeSessionId.delete(event.sessionID);
-          }
+          contentSessionIdsByOpenCodeSessionId.delete(event.sessionID);
           break;
         }
       }

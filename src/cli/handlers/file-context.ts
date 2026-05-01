@@ -6,14 +6,12 @@
  */
 
 import type { EventHandler, NormalizedHookInput, HookResult } from '../types.js';
-import { ensureWorkerRunning, workerHttpRequest } from '../../shared/worker-utils.js';
+import { executeWithWorkerFallback, isWorkerFallback } from '../../shared/worker-utils.js';
 import { logger } from '../../utils/logger.js';
 import { parseJsonArray } from '../../shared/timeline-formatting.js';
 import { statSync } from 'fs';
 import path from 'path';
-import { isProjectExcluded } from '../../utils/project-filter.js';
-import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
-import { USER_SETTINGS_PATH } from '../../shared/paths.js';
+import { shouldTrackProject } from '../../shared/should-track-project.js';
 import { getProjectContext } from '../../utils/project-name.js';
 
 /** Skip the gate for files smaller than this — timeline overhead exceeds file read cost. */
@@ -108,8 +106,7 @@ function deduplicateObservations(
 
 function formatFileTimeline(
   observations: ObservationRow[],
-  filePath: string,
-  truncated: boolean
+  filePath: string
 ): string {
   // Escape filePath for safe interpolation into recovery hints (quotes, backslashes, newlines)
   const safePath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
@@ -140,17 +137,14 @@ function formatFileTimeline(
   }).toLowerCase().replace(' ', '');
   const currentTimezone = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
 
-  const headerLine = truncated
-    ? `This file has prior observations. Only line 1 was read to save tokens.`
-    : `This file has prior observations. The requested section was read normally.`;
-
+  // The hook never modifies the Read call (#2094) — Claude always sees the
+  // full requested section. The timeline below is supplementary priming, not
+  // a replacement for the file contents.
   const lines: string[] = [
     `Current: ${currentDate} ${currentTime} ${currentTimezone}`,
-    headerLine,
-    `- **Already know enough?** The timeline below may be all you need (semantic priming).`,
-    `- **Need details?** get_observations([IDs]) — ~300 tokens each.`,
-    `- **Need full file?** Read again with offset/limit for the section you need.`,
-    `- **Need to edit?** Edit works — the file is registered as read. Use smart_outline("${safePath}") for line numbers.`,
+    `This file has prior observations — supplementary context follows. The Read result below is the full requested section.`,
+    `- **Need details on a past observation?** get_observations([IDs]) — ~300 tokens each.`,
+    `- **Need a structural map first?** smart_outline("${safePath}") — line numbers only, cheaper than re-reading.`,
   ];
 
   for (const [day, dayObservations] of sortedDays) {
@@ -178,15 +172,8 @@ export const fileContextHandler: EventHandler = {
       return { continue: true, suppressOutput: true };
     }
 
-    // Preserve user-supplied offset/limit to avoid read-dedup collisions (fixes #1719)
-    const userOffset = typeof toolInput?.offset === 'number' && Number.isFinite(toolInput.offset) && toolInput.offset >= 0
-      ? Math.floor(toolInput.offset) : undefined;
-    const userLimit = typeof toolInput?.limit === 'number' && Number.isFinite(toolInput.limit) && toolInput.limit > 0
-      ? Math.floor(toolInput.limit) : undefined;
-    const isTargetedRead = userOffset !== undefined || userLimit !== undefined;
-
     // Stat the file once: size (gate) + mtime (cache invalidation).
-    // 0 = stat failed non-fatally (e.g. EPERM) — skip mtime check, fall through to truncation.
+    // 0 = stat failed non-fatally (e.g. EPERM) — skip mtime check, fall through to context injection.
     let fileMtimeMs = 0;
     try {
       const statPath = path.isAbsolute(filePath)
@@ -207,16 +194,9 @@ export const fileContextHandler: EventHandler = {
       logger.debug('HOOK', 'File stat failed, proceeding with gate', { error: err instanceof Error ? err.message : String(err) });
     }
 
-    // Check if project is excluded from tracking
-    const settings = SettingsDefaultsManager.loadFromFile(USER_SETTINGS_PATH);
-    if (input.cwd && isProjectExcluded(input.cwd, settings.CLAUDE_MEM_EXCLUDED_PROJECTS)) {
+    // Plan 05 Phase 5: project exclusion via single helper.
+    if (input.cwd && !shouldTrackProject(input.cwd)) {
       logger.debug('HOOK', 'Project excluded from tracking, skipping file context', { cwd: input.cwd });
-      return { continue: true, suppressOutput: true };
-    }
-
-    // Ensure worker is running
-    const workerReady = await ensureWorkerRunning();
-    if (!workerReady) {
       return { continue: true, suppressOutput: true };
     }
 
@@ -232,33 +212,30 @@ export const fileContextHandler: EventHandler = {
     }
     queryParams.set('limit', String(FETCH_LOOKAHEAD_LIMIT));
 
-    let data: { observations: ObservationRow[]; count: number };
-    try {
-      const response = await workerHttpRequest(`/api/observations/by-file?${queryParams.toString()}`, { method: 'GET' });
-
-      if (!response.ok) {
-        logger.warn('HOOK', 'File context query failed, skipping', { status: response.status, filePath });
-        return { continue: true, suppressOutput: true };
-      }
-
-      data = await response.json() as { observations: ObservationRow[]; count: number };
-    } catch (error) {
-      logger.warn('HOOK', 'File context fetch error, skipping', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+    // Plan 05 Phase 2: single helper for ensure-worker-alive → request → fallback.
+    const result = await executeWithWorkerFallback<{ observations: ObservationRow[]; count: number }>(
+      `/api/observations/by-file?${queryParams.toString()}`,
+      'GET',
+    );
+    if (isWorkerFallback(result)) {
       return { continue: true, suppressOutput: true };
     }
+    if (!result || !Array.isArray((result as any).observations)) {
+      logger.warn('HOOK', 'File context query returned malformed body, skipping', { filePath });
+      return { continue: true, suppressOutput: true };
+    }
+    const data = result;
 
     if (!data.observations || data.observations.length === 0) {
       return { continue: true, suppressOutput: true };
     }
 
-    // mtime invalidation: bypass truncation when the file is newer than the latest observation.
-    // Uses >= to handle same-millisecond edits (cost: one extra full read vs risk of stuck truncation).
+    // mtime invalidation: skip the timeline injection when the file is newer than the latest
+    // observation — past observations are stale and adding them risks misleading the model.
     if (fileMtimeMs > 0) {
       const newestObservationMs = Math.max(...data.observations.map(o => o.created_at_epoch));
       if (fileMtimeMs >= newestObservationMs) {
-        logger.debug('HOOK', 'File modified since last observation, skipping truncation', {
+        logger.debug('HOOK', 'File modified since last observation, skipping context injection', {
           filePath: relativePath,
           fileMtimeMs,
           newestObservationMs,
@@ -273,23 +250,18 @@ export const fileContextHandler: EventHandler = {
       return { continue: true, suppressOutput: true };
     }
 
-    // Unconstrained → truncate to 1 line; targeted → preserve offset/limit.
-    const truncated = !isTargetedRead;
-    const timeline = formatFileTimeline(dedupedObservations, filePath, truncated);
-    const updatedInput: Record<string, unknown> = { file_path: filePath };
-    if (isTargetedRead) {
-      if (userOffset !== undefined) updatedInput.offset = userOffset;
-      if (userLimit !== undefined) updatedInput.limit = userLimit;
-    } else {
-      updatedInput.limit = 1;
-    }
+    // #2094: never modify the Read call. Returning `updatedInput` with `limit: 1` previously
+    // truncated unconstrained reads, leaving Claude with a stale 1-line snapshot in context
+    // while the timeline told it not to re-read. Subsequent Edit calls then deadlocked because
+    // Claude Code's read-state tracker reported the file as "read" but the actual content was
+    // missing. The hook now only injects supplementary context — the Read proceeds unmodified.
+    const timeline = formatFileTimeline(dedupedObservations, filePath);
 
     return {
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
         additionalContext: timeline,
         permissionDecision: 'allow',
-        updatedInput,
       },
     };
   },

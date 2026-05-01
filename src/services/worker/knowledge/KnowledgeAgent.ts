@@ -79,7 +79,11 @@ export class KnowledgeAgent {
         cwd: OBSERVER_SESSIONS_DIR,
         disallowedTools: KNOWLEDGE_AGENT_DISALLOWED_TOOLS,
         pathToClaudeCodeExecutable: claudePath,
-        env: isolatedEnv
+        env: isolatedEnv,
+        mcpServers: {},
+        // Same SDK-boundary isolation as SDKAgent. Closes #2155, #2159, #2171, #2194.
+        settingSources: [],
+        strictMcpConfig: true,
       }
     });
 
@@ -195,7 +199,11 @@ export class KnowledgeAgent {
         cwd: OBSERVER_SESSIONS_DIR,
         disallowedTools: KNOWLEDGE_AGENT_DISALLOWED_TOOLS,
         pathToClaudeCodeExecutable: claudePath,
-        env: isolatedEnv
+        env: isolatedEnv,
+        mcpServers: {},
+        // Same SDK-boundary isolation as SDKAgent. Closes #2155, #2159, #2171, #2194.
+        settingSources: [],
+        strictMcpConfig: true,
       }
     });
 

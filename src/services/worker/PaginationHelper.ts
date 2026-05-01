@@ -7,6 +7,7 @@
  * - Efficient LIMIT+1 trick to avoid COUNT(*) query
  */
 
+import type { SQLQueryBindings } from 'bun:sqlite';
 import { DatabaseManager } from './DatabaseManager.js';
 import { logger } from '../../utils/logger.js';
 import { OBSERVER_SESSIONS_PROJECT } from '../../shared/paths.js';
@@ -102,7 +103,7 @@ export class PaginationHelper {
       FROM observations o
       LEFT JOIN sdk_sessions s ON o.memory_session_id = s.memory_session_id
     `;
-    const params: unknown[] = [];
+    const params: SQLQueryBindings[] = [];
     const conditions: string[] = [];
 
     if (project) {
@@ -174,7 +175,8 @@ export class PaginationHelper {
       params.push(project, project);
     } else {
       // Hide internal observer-session rows from the unfiltered UI list.
-      conditions.push("ss.project != 'observer-sessions'");
+      conditions.push('ss.project != ?');
+      params.push(OBSERVER_SESSIONS_PROJECT);
     }
 
     if (platformSource) {
@@ -228,7 +230,8 @@ export class PaginationHelper {
       params.push(project);
     } else {
       // Hide internal observer-session rows from the unfiltered UI list.
-      conditions.push("s.project != 'observer-sessions'");
+      conditions.push('s.project != ?');
+      params.push(OBSERVER_SESSIONS_PROJECT);
     }
 
     if (platformSource) {

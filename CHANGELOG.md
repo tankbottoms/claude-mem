@@ -4,6 +4,167 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [12.4.9] - 2026-04-30
+
+Patches in 7 critical fixes from PR #2219 (integration/critical-fixes-april):
+
+- #2211 build/bundle drift — remove stale macOS binary + regen artifacts (closes #2158, #2200, #2154)
+- #2204 strip privacy tags before summarization (closes #2149)
+- #2205 preserve relevance order in semantic search (closes #2153)
+- #2208 restore Windows spawn (PR #751 re-apply) + Windows CI
+- #2209 Codex transcript ingestion + queue self-deadlock on Windows (closes #2192)
+- #2206 isolate SDK boundary — close 6 issues at 3 call sites
+- #2210 standalone batch — npm peer deps, marketplace self-heal, cache prune
+
+## [12.4.8] - 2026-04-28
+
+## Bug Fixes
+
+- **timeline tool:** Coerce stringified numeric anchors (e.g. `"123"`) into the observation-ID dispatch path so they no longer fall through to ISO-timestamp parsing and return wrong-epoch windows. The HTTP layer always sends anchor as a string, so this fixes anchor lookups via MCP and HTTP across the board. (#2176)
+
+## Tests
+
+- Added a 7-case regression suite covering JS-number anchors, stringified-number anchors (incl. whitespace-padded), session-ID anchors (`S<n>`), ISO-timestamp anchors, garbage anchors, and explicit numeric-not-found behavior. The suite runs against a real in-memory SQLite `SessionStore` to exercise the full dispatch path.
+
+## Refactors
+
+- Extracted `parseNumericAnchor` helper in `SearchManager` to centralize anchor coercion across timeline handlers.
+
+## [12.4.7] - 2026-04-26
+
+## Cynical deletion + review fixes
+
+This release wraps up the cynical-deletion sweep (PR #2141) — closing 27 issues by removing two anti-patterns that were breeding bugs:
+
+- **Defenders** (orphan cleanup, duplicate liveness probes, restart-port-steal logic) replaced with fail-fast or single-source paths.
+- **Tolerators** (silent JSON drops, drifted SSE/SQL filters, passthrough Zod schemas) replaced with strict boundaries.
+
+### Highlights
+- Multi-account isolation via `CLAUDE_MEM_DATA_DIR` + per-UID worker port (`37700 + uid % 100`), with `CLAUDE_MEM_WORKER_PORT` override (#2101)
+- New `CLAUDE_MEM_INTERNAL=1` trust boundary replaces cwd-based observer-session detection
+- Shared `shouldEmitProjectRow` predicate keeps SSE broadcast and pagination filters in sync
+- Pinned `chroma-mcp` to 0.2.6 for reproducible installs
+- Install/uninstall: shared `shutdown-helper` releases file locks before overwrite/delete (#2106)
+- Migration 30: `observations.metadata` column added (#2116)
+- Proxy env vars stripped from spawned subprocesses to prevent user proxy config leaking into AI API calls
+
+### Review-comment fixes (post-PR)
+- `worker-service` restart now exits 1 with error if `spawnDaemon` fails (Greptile P1)
+- `shutdown-helper` distinguishes `AbortError` (slow worker) from connection-refused (gone) (Greptile P2)
+- `hooks.json` `$HOME` cache lookup quoted to support paths with spaces
+- `timeline-report` SKILL works on Windows (no `process.getuid()` requirement)
+- `opencode-plugin` validates `CLAUDE_MEM_WORKER_PORT` before use
+- `uninstall` only strips alias lines, not function declarations
+- `MemoryRoutes` trims whitespace-only `project` before precedence resolution
+- Migration 21 preserves `metadata` column when rebuilding observations table
+
+### Closes
+#2087, #2089, #2094, #2099, #2101, #2103, #2106, #2116, #2139, #2140, and 17 more (see PR #2141).
+
+## [12.4.5] - 2026-04-26
+
+## Bug Fixes
+
+- **Fix observation persistence on fresh installs (#2139)**: `SessionStore` was missing migration 28's column additions, so freshly created `pending_messages` tables had no `tool_use_id` or `worker_pid` columns. Every queue claim and observation insert failed silently with "no such column" errors and nothing reached memory. Added `addPendingMessagesToolUseIdAndWorkerPidColumns` mirror in `SessionStore.ts` (matches the existing `addObservationSubagentColumns` / `addObservationsUniqueContentHashIndex` mirror pattern). Already-broken DBs at "v29 with no v28 columns" self-heal on next worker boot via column-existence guards. Dedup DELETE + UNIQUE index creation are now wrapped in a transaction matching the v29 mirror precedent.
+
+Thanks to @drdah123 for the precise diagnosis and reproduction in the issue report.
+
+## [12.4.4] - 2026-04-26
+
+## Bug fix: stop draining the observation queue on /clear
+
+When users typed `/clear` in Claude Code (or logged out, exited, or hit `prompt_input_exit`), every still-pending observation in the worker queue was being marked `abandoned` and never processed. The same shim was wired across Claude Code, Gemini CLI, the transcripts processor, OpenCode plugin, and OpenClaw — five surfaces, all draining the queue on what should be benign session-end signals.
+
+This release removes the `SessionEnd → session-complete` hook entirely. The worker self-completes via its SDK-agent generator's finally-block, so no external completion call is needed. Pending observations now finish processing naturally instead of being abandoned.
+
+Explicit user-initiated session deletion (via the viewer UI's `DELETE /api/sessions/:id`) still drains the queue — that's the only path that should.
+
+### What changed
+
+- Removed `SessionEnd` hook block from `plugin/hooks/hooks.json`
+- Removed `POST /api/sessions/complete` route + Zod schema in `SessionRoutes.ts`
+- Deleted `src/cli/handlers/session-complete.ts` and its registry entry
+- Removed the call from `src/services/transcripts/processor.ts`
+- Removed the call from the OpenCode plugin's `session.deleted` handler
+- Removed the Gemini CLI installer's `SessionEnd → session-complete` mapping
+- Removed `scheduleSessionComplete`, `pendingCompletionTimers`, and `completionDelayMs` from OpenClaw
+
+### Background
+
+This bug had been quietly draining queues since **November 7, 2025** (~6 months). The wiring crept in as a "cleanup hook stops the spinner" side effect (#4416), got rationalized as canonical architecture (#6682, #14793), and survived multiple refactors that preserved it instead of questioning it. Full timeline in PR #2136.
+
+## [12.4.3] - 2026-04-25
+
+One-time pollution cleanup migration plus the v12.4.1 / v12.4.2 ship-blocker fixes folded into a single release.
+
+## Headline
+
+**One-shot DB cleanup migration** (`CleanupV12_4_3.ts`) — runs once per data directory at worker startup, marker-file gated, opt-out via `CLAUDE_MEM_SKIP_CLEANUP_V12_4_3=1`. Cleans:
+- `observer-sessions` rows that polluted user-facing search/timeline before the observer-sessions filter shipped (cascades to `user_prompts`, `observations`, `session_summaries`).
+- Stuck `pending_messages` chains (≥10 rows per session in `failed`/`processing`) left over from the pre-v12.4.2 context-overflow loop.
+- `~/.claude-mem/chroma/` and `chroma-sync-state.json` so `backfillAllProjects` rebuilds vectors from the cleaned SQLite.
+
+Backups before any delete: `VACUUM INTO` first, with a `copyFileSync` fallback that also mirrors `-wal` / `-shm` sidecars so a WAL-mode restore is complete. Pre-flight `statfsSync` disk check before backup. The marker is only written after SQLite purges succeed; Chroma-wipe failures record the error on the marker rather than re-running the backup on every boot.
+
+- **Context-overflow loop fix** (`SDKAgent.ts`): both overflow detection paths (`'prompt is too long'` / `'Prompt is too long'`) now clear `memorySessionId` and force a fresh session via the new `resetSessionForFreshStart` helper before aborting/throwing. Stops the infinite retry seen in pre-v12.4.2 logs.
+- **`<task-notification>` storage leak** (`tag-stripping.ts` + `session-init.ts` + `SessionRoutes.ts`): dual-layer filter at the hook and at the worker HTTP boundary. `isInternalProtocolPayload` uses a tempered greedy body with negative lookahead so adjacent and surrounded protocol tags can't span across user text. 256 KB size guard before the regex prevents ReDoS on malformed payloads.
+
+## v12.4.1 trivial fixes
+
+- `mcpServers: {}` on `SDKAgent` and `KnowledgeAgent` spawns prevents host MCP server inheritance.
+- `McpIntegrations.ts`: `.agent` → `.agents` path correction.
+- `hooks.json`: `file-context` timeout `2000` → `60` (was 33 minutes); explicit `shell: bash` on hooks that use bash-only syntax.
+
+## Cleanup-migration counts (sample run)
+
+11 sessions + 3 cascade rows + 141 pending_messages purged in 1.1s; 277 MB pre-cleanup backup written.
+
+## Tests
+
+New: `tests/infrastructure/cleanup-v12_4_3.test.ts` — real on-disk SQLite under a tmpdir, exercises the happy path, idempotency, opt-out env var, no-DB marker, threshold-boundary preservation. Writing these tests caught a real counting bug (bun:sqlite `result.changes` inflates with FTS triggers) and the regex false positive (greedy `[\s\S]*` spanning two protocol blocks).
+
+## Notes
+
+- The migration is intentionally NOT atomic across the two transactions: if `runStuckPendingPurge` fails after `runObserverSessionsPurge` commits, the observer rows stay deleted and the cleanup retries on next boot. Both purges are idempotent.
+- A user low on disk at first post-upgrade boot will retry on the next boot with adequate space (the marker is not written on disk-skip).
+
+## [12.4.2] - 2026-04-25
+
+## Two ship-blockers from yesterday's triage + 5 trivial fixes
+
+### Worker reliability
+- **Context overflow no longer loops forever.** When the Claude SDK throws `Prompt is too long`, `SDKAgent` now clears `session.memorySessionId` and sets `session.forceInit = true` before throwing — so the immediately-following crash-recovery spawn starts a fresh SDK session instead of resuming the same overflowed context. In the wild this had stranded 68+ pending messages on a single poisoned session before the windowed RestartGuard finally abandoned the queue.
+- **`<task-notification>` payloads no longer pollute `user_prompts`.** Claude Code's autonomous protocol blocks (emitted on background `Agent` completion) were being captured as if they were user prompts — 471 such rows in one local DB. New `isInternalProtocolPayload()` predicate in `src/utils/tag-stripping.ts` blocks them at both the hook layer (`session-init.ts`) and the worker boundary (`SessionRoutes.ts`). Conservative deny-list — does NOT touch `<command-name>` / `<command-message>` which wrap real user slash-commands.
+
+### Triage cleanup (from yesterday's open-issue review)
+- **#2092**: `worker-service.cjs` build banner now CJS-safe (no `import.meta.url`); `node -c` passes for the first time in several releases.
+- **#2100**: PreToolUse Read hook timeout reduced from `2000` (s, plainly a typo) to `60`.
+- **#2131**: `"shell": "bash"` added to every hook in `plugin/hooks/hooks.json` so Claude Code on Windows routes through Git Bash instead of cmd.exe.
+- **#2132**: Antigravity context file path corrected from `.agent/rules` to `.agents/rules`.
+- **#2088**: Worker SDK `query()` calls now pass `mcpServers: {}` to suppress inheritance of the user's global MCP servers (Serena, etc.) into observer/knowledge sessions.
+
+### Notes
+- Cleanup of polluted rows is included in the worker — fresh installs are clean. To clean an existing DB: `sqlite3 ~/.claude-mem/claude-mem.db "DELETE FROM user_prompts WHERE prompt_text LIKE '<task-notification>%';"` (the AFTER-DELETE trigger handles FTS).
+- The 5 triage fixes were authored from a multi-agent review of 38 open issues against the v12.3.0–v12.4.1 cleanup arc.
+
+## [12.4.1] - 2026-04-25
+
+## perf(chroma): Cache backfill watermarks to skip per-restart Chroma scans
+
+Worker restarts were re-scanning Chroma's full metadata for every project on every boot to determine which sqlite ids were already embedded. With ~253 projects and ~92k embeddings, this pegged `chroma-mcp` at 100–422% CPU on each spawn.
+
+### What changed
+- New `~/.claude-mem/chroma-sync-state.json` watermark cache — per-project highest synced sqlite_id for observations, summaries, and prompts.
+- Backfill SQL changed from `id NOT IN (huge list)` to `id > watermark`.
+- Live `syncObservation` / `syncSummary` / `syncUserPrompt` bump the watermark on success.
+- One-time bootstrap derives initial watermarks from a single Chroma scan if the state file is missing — after that, Chroma metadata is never scanned again on startup.
+- Watermark advances per batch, so partial-failure runs resume cleanly.
+
+### Result
+- Chroma CPU on worker restart: **422% → 0%**.
+- State file size for 253 projects: **~3.7 KB**.
+- Backfill startup time: **seconds → near-instant** after bootstrap.
+
 ## [12.3.9] - 2026-04-22
 
 ## Highlights

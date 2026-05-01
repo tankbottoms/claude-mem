@@ -101,6 +101,11 @@ async function buildHooks() {
       description: 'Runtime dependencies for claude-mem bundled hooks',
       type: 'module',
       dependencies: {
+        // Externalized from mcp-server.cjs to avoid Zod version conflicts when
+        // OpenCode's Bun bundler assembles hook scripts (#2113). MCP SDK
+        // transitively imports Zod; loading it via node_modules at runtime
+        // ensures OpenCode controls the version.
+        'zod': '^4.3.6',
         'tree-sitter-cli': '^0.26.5',
         'tree-sitter-c': '^0.24.1',
         'tree-sitter-cpp': '^0.23.4',
@@ -126,6 +131,14 @@ async function buildHooks() {
         '@tree-sitter-grammars/tree-sitter-yaml': '^0.7.1',
         '@derekstride/tree-sitter-sql': '^0.3.11',
         '@tree-sitter-grammars/tree-sitter-markdown': '^0.3.2',
+      },
+      // The grammar packages above declare three different majors of `tree-sitter`
+      // as peer deps (^0.21, ^0.22, ^0.25). Bun and pnpm are lenient enough to
+      // pick one and move on, but plain `npm install --production` aborts with
+      // ERESOLVE. Pinning a single version via `overrides` lets npm resolve a
+      // working tree without `--legacy-peer-deps`. Closes #2147.
+      overrides: {
+        'tree-sitter': '^0.25.0'
       },
       engines: {
         node: '>=18.0.0',
@@ -175,8 +188,8 @@ async function buildHooks() {
       banner: {
         js: [
           '#!/usr/bin/env bun',
-          'var __filename = require("node:url").fileURLToPath(import.meta.url);',
-          'var __dirname = require("node:path").dirname(__filename);'
+          'var __filename = __filename || require("node:path").resolve(process.argv[1] || "");',
+          'var __dirname = __dirname || require("node:path").dirname(__filename);'
         ].join('\n')
       }
     });
@@ -202,6 +215,11 @@ async function buildHooks() {
       logLevel: 'error',
       external: [
         'bun:sqlite',
+        // Externalize Zod to avoid version conflicts when OpenCode's Bun bundler
+        // assembles hook scripts (see #2113). The MCP server transitively imports
+        // Zod via @modelcontextprotocol/sdk; bundling it caused two Zod versions
+        // to coexist at runtime and the v4 ↔ v3 _zod.def access crashed.
+        'zod',
         'tree-sitter-cli',
         'tree-sitter-javascript',
         'tree-sitter-typescript',
@@ -291,7 +309,7 @@ async function buildHooks() {
       outfile: `${hooksDir}/${CONTEXT_GENERATOR.name}.cjs`,
       minify: true,
       logLevel: 'error',
-      external: ['bun:sqlite'],
+      external: ['bun:sqlite', 'zod'],
       define: {
         '__DEFAULT_PACKAGE_VERSION__': `"${version}"`
       },

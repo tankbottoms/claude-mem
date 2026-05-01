@@ -52,6 +52,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED: string;
   // Process Management
   CLAUDE_MEM_MAX_CONCURRENT_AGENTS: string;  // Max concurrent Claude SDK agent subprocesses (default: 2)
+  CLAUDE_MEM_HOOK_FAIL_LOUD_THRESHOLD: string;  // Plan 05 Phase 8 — consecutive hook→worker unreachable failures before exit code 2 (default: 3)
   // Exclusion Settings
   CLAUDE_MEM_EXCLUDED_PROJECTS: string;  // Comma-separated glob patterns for excluded project paths
   CLAUDE_MEM_FOLDER_MD_EXCLUDE: string;  // JSON array of folder paths to exclude from CLAUDE.md generation
@@ -128,6 +129,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED: 'false',
     // Process Management
     CLAUDE_MEM_MAX_CONCURRENT_AGENTS: '2',  // Max concurrent Claude SDK agent subprocesses
+    CLAUDE_MEM_HOOK_FAIL_LOUD_THRESHOLD: '3',  // Plan 05 Phase 8 — escalate to exit code 2 after N consecutive worker-unreachable hook invocations
     // Exclusion Settings
     CLAUDE_MEM_EXCLUDED_PROJECTS: '',  // Comma-separated glob patterns for excluded project paths
     CLAUDE_MEM_FOLDER_MD_EXCLUDE: '[]',  // JSON array of folder paths to exclude from CLAUDE.md generation
@@ -191,7 +193,7 @@ export class SettingsDefaultsManager {
    * Handles both string 'true' and boolean true from JSON
    */
   static getBool(key: keyof SettingsDefaults): boolean {
-    const value = this.get(key);
+    const value: unknown = this.get(key);
     return value === 'true' || value === true;
   }
 

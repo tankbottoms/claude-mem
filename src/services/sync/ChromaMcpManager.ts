@@ -31,6 +31,24 @@ const RECONNECT_BACKOFF_MS = 10_000; // Don't retry connections faster than this
 const DEFAULT_CHROMA_DATA_DIR = path.join(os.homedir(), '.claude-mem', 'chroma');
 const CHROMA_SUPERVISOR_ID = 'chroma-mcp';
 
+/**
+ * Pinned chroma-mcp version for deterministic installs.
+ *
+ * Why pin: `uvx chroma-mcp` (unpinned) resolves whatever version PyPI happens
+ * to serve at install time. That has bitten us multiple ways:
+ *   - #2046: transient missing httpcore/httpx after dependency resolver shifts
+ *   - #2085: surprise breaking changes between point releases
+ *   - #2102: subprocess spawn storms triggered by version drift in chromadb deps
+ *
+ * Pinning to a specific known-good version makes installs reproducible across
+ * machines and across time. Bump deliberately, not accidentally.
+ *
+ * Verified 2026-04-25 with `uvx --python 3.13 chroma-mcp==0.2.6 --help` in a
+ * clean uv cache: starts cleanly, no httpcore/httpx ImportError, no `--with`
+ * flags required. If that changes on a future bump, re-add the flags here.
+ */
+const CHROMA_MCP_PINNED_VERSION = '0.2.6';
+
 export class ChromaMcpManager {
   private static instance: ChromaMcpManager | null = null;
   private client: Client | null = null;
@@ -212,7 +230,7 @@ export class ChromaMcpManager {
 
       const args = [
         '--python', pythonVersion,
-        'chroma-mcp',
+        `chroma-mcp==${CHROMA_MCP_PINNED_VERSION}`,
         '--client-type', 'http',
         '--host', chromaHost,
         '--port', chromaPort
@@ -238,7 +256,7 @@ export class ChromaMcpManager {
     // Local mode: persistent client with data directory
     return [
       '--python', pythonVersion,
-      'chroma-mcp',
+      `chroma-mcp==${CHROMA_MCP_PINNED_VERSION}`,
       '--client-type', 'persistent',
       '--data-dir', DEFAULT_CHROMA_DATA_DIR.replace(/\\/g, '/')
     ];
@@ -338,6 +356,73 @@ export class ChromaMcpManager {
         error: error instanceof Error ? error.message : String(error)
       });
       return false;
+    }
+  }
+
+  /**
+   * Deep semantic-search probe — verifies the actual query path works,
+   * not just that the subprocess responds to one tool. Each stage is wrapped
+   * in its own try/catch so the returned `stage` reflects where it failed.
+   *
+   * Stages:
+   *  - 'list'  → chroma_list_collections (also counts collections)
+   *  - 'query' → chroma_query_documents against cm__claude-mem with a trivial
+   *              query and n_results: 1 (measures latency)
+   *  - 'done'  → both stages succeeded
+   */
+  async probeSemanticSearch(): Promise<{
+    ok: boolean;
+    stage: 'connect' | 'list' | 'query' | 'done';
+    error?: string;
+    collections?: number;
+    queryLatencyMs?: number;
+  }> {
+    let collections: number | undefined;
+
+    // Stage: list — also lazy-connects via callTool
+    try {
+      const listResult: any = await this.callTool('chroma_list_collections', { limit: 100 });
+      if (Array.isArray(listResult)) {
+        collections = listResult.length;
+      } else if (listResult && Array.isArray(listResult.collections)) {
+        collections = listResult.collections.length;
+      } else if (listResult && typeof listResult === 'object' && 'length' in listResult) {
+        collections = (listResult as { length: number }).length;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn('CHROMA_MCP', 'Deep probe failed at list stage', { error: message });
+      return { ok: false, stage: 'list', error: message };
+    }
+
+    // Stage: query — round-trip through the embedding/vector path
+    const queryStartedAt = Date.now();
+    try {
+      await this.callTool('chroma_query_documents', {
+        collection_name: 'cm__claude-mem',
+        query_texts: ['ping'],
+        n_results: 1
+      });
+      const queryLatencyMs = Date.now() - queryStartedAt;
+      return { ok: true, stage: 'done', collections, queryLatencyMs };
+    } catch (error) {
+      const queryLatencyMs = Date.now() - queryStartedAt;
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      const isMissingOrEmpty = /not exist|missing|empty|no such/i.test(rawMessage);
+      const errorMessage = isMissingOrEmpty
+        ? `collection cm__claude-mem missing or empty (${rawMessage})`
+        : rawMessage;
+      logger.warn('CHROMA_MCP', 'Deep probe failed at query stage', {
+        error: rawMessage,
+        queryLatencyMs
+      });
+      return {
+        ok: false,
+        stage: 'query',
+        error: errorMessage,
+        collections,
+        queryLatencyMs
+      };
     }
   }
 

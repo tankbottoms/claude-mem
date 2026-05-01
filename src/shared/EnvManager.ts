@@ -30,13 +30,6 @@ const BLOCKED_ENV_VARS = [
   'CLAUDECODE',         // Prevent "cannot be launched inside another Claude Code session" error
 ];
 
-// Credential keys that claude-mem manages
-export const MANAGED_CREDENTIAL_KEYS = [
-  'ANTHROPIC_API_KEY',
-  'GEMINI_API_KEY',
-  'OPENROUTER_API_KEY',
-];
-
 export interface ClaudeMemEnv {
   // Credentials (optional - empty means use CLI billing for Claude)
   ANTHROPIC_API_KEY?: string;
@@ -224,6 +217,13 @@ export function buildIsolatedEnv(includeCredentials: boolean = true): Record<str
   // 2. Override SDK entrypoint marker
   isolatedEnv.CLAUDE_CODE_ENTRYPOINT = 'sdk-ts';
 
+  // 2a. Mark this as an internal claude-mem subprocess so spawned hooks can
+  // skip tracking unconditionally. This is the single trust boundary for
+  // observer-session detection — every consumer can check
+  // process.env.CLAUDE_MEM_INTERNAL instead of repeating cwd-based exclusion
+  // checks (which inevitably drift; see #2118 / #2126).
+  isolatedEnv.CLAUDE_MEM_INTERNAL = '1';
+
   // 3. Re-inject managed credentials from claude-mem's .env file
   if (includeCredentials) {
     const credentials = loadClaudeMemEnv();
@@ -267,16 +267,6 @@ export function buildIsolatedEnv(includeCredentials: boolean = true): Record<str
 export function getCredential(key: keyof ClaudeMemEnv): string | undefined {
   const env = loadClaudeMemEnv();
   return env[key];
-}
-
-/**
- * Set a specific credential in claude-mem's .env
- * Pass empty string to remove the credential
- */
-export function setCredential(key: keyof ClaudeMemEnv, value: string): void {
-  const env = loadClaudeMemEnv();
-  env[key] = value || undefined;
-  saveClaudeMemEnv(env);
 }
 
 /**
