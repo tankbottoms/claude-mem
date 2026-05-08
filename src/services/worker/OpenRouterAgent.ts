@@ -11,6 +11,7 @@
  * - Support dynamic model selection across providers
  */
 
+import { hostname } from 'node:os';
 import { buildContinuationPrompt, buildInitPrompt, buildObservationPrompt, buildSummaryPrompt } from '../../sdk/prompts.js';
 import { getCredential } from '../../shared/EnvManager.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
@@ -431,6 +432,9 @@ export class OpenRouterAgent {
         'HTTP-Referer': siteUrl || 'https://github.com/thedotmack/claude-mem',
         'X-Title': appName || 'claude-mem',
         'Content-Type': 'application/json',
+        'x-gpumon-project': 'claude-mem',
+        'x-gpumon-service': 'observation-extractor',
+        'x-gpumon-caller-host': hostname(),
       },
       body: JSON.stringify({
         model,
